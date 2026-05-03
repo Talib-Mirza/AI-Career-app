@@ -5,7 +5,9 @@ import { motion } from 'framer-motion'
 import { Bot, ChevronRight, Loader2, User as UserIcon } from 'lucide-react'
 
 import { MarkdownRenderer } from '@/app/chat/components/MarkdownRenderer'
-import type { Chat2TimelineMessage } from '../sessionUtils'
+import type { Chat2TimelineMessage } from '@/app/chat/sessionUtils'
+
+import { VibeThreadEmptyState } from '@/app/chat/components/vibe/VibeThreadEmptyState'
 
 interface VibeMessageThreadProps {
     messages: Chat2TimelineMessage[]
@@ -34,11 +36,7 @@ export function VibeMessageThread({
             className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 py-5"
         >
             {messages.length === 0 ? (
-                <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-2 text-center">
-                    <p className="text-sm leading-relaxed text-zinc-500">
-                        Your conversation appears here. Describe a career goal below to begin.
-                    </p>
-                </div>
+                <VibeThreadEmptyState />
             ) : (
                 <div className="min-w-0 space-y-5">
                     {messages.map((message, index) => (

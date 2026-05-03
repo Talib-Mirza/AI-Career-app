@@ -5,10 +5,10 @@ import { LayoutDashboard, Menu, Sparkles } from 'lucide-react'
 
 interface VibeCornerControlsProps {
     onOpenDrawer: () => void
-    onOpenDashboardStub: () => void
+    onOpenDashboard: () => void
 }
 
-export function VibeCornerControls({ onOpenDrawer, onOpenDashboardStub }: VibeCornerControlsProps) {
+export function VibeCornerControls({ onOpenDrawer, onOpenDashboard }: VibeCornerControlsProps) {
     return (
         <>
             <button
@@ -28,7 +28,7 @@ export function VibeCornerControls({ onOpenDrawer, onOpenDashboardStub }: VibeCo
             </Link>
             <button
                 type="button"
-                onClick={onOpenDashboardStub}
+                onClick={onOpenDashboard}
                 className="fixed bottom-5 right-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-zinc-950/50 text-zinc-200 shadow-lg backdrop-blur-md transition hover:border-violet-400/30 hover:bg-zinc-900/70 hover:text-white"
                 aria-label="Dashboard"
             >

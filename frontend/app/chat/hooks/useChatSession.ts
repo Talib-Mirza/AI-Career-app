@@ -22,6 +22,8 @@ import {
     type DungeonUiPhase,
 } from '@/app/chat/components/DungeonExperience'
 import { getChatScrollStorageKey, snapLectureThreadToBottom } from '@/app/lib/chatScrollPersistence'
+import { applyXPGain, XP_REWARDS } from '@/lib/progression'
+import type { MilestoneEvent } from '@/app/chat/components/MilestoneToast'
 
 import {
     chat2InputPlaceholder,
@@ -36,9 +38,9 @@ import {
     shouldAppendAssistantTimelineMessage,
     toRoadmapLabel,
     type Chat2TimelineMessage,
-} from '../sessionUtils'
+} from '@/app/chat/sessionUtils'
 
-export function useChat2Session(user: User | null, scrollContainerRef?: RefObject<HTMLDivElement | null>) {
+export function useChatSession(user: User | null, scrollContainerRef?: RefObject<HTMLDivElement | null>) {
     const [profile, setProfile] = useState<UserProfile | null>(null)
     const [projects, setProjects] = useState<AgentProjectSummary[]>([])
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -64,7 +66,9 @@ export function useChat2Session(user: User | null, scrollContainerRef?: RefObjec
     const [quizOutcomeFeedback, setQuizOutcomeFeedback] = useState<QuizOutcomeFeedback | null>(null)
     const [outcomeAnchorQuestion, setOutcomeAnchorQuestion] = useState<AgentQuestion | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
-    const [dashboardStubOpen, setDashboardStubOpen] = useState(false)
+    const [isDashboardOpen, setIsDashboardOpen] = useState(false)
+    const [levelUpModal, setLevelUpModal] = useState<number | null>(null)
+    const [milestones, setMilestones] = useState<(MilestoneEvent & { id: string })[]>([])
 
     const queuedQuestionRef = useRef<AgentQuestion | null>(null)
     const streamingTimerRef = useRef<number | null>(null)
@@ -78,6 +82,11 @@ export function useChat2Session(user: User | null, scrollContainerRef?: RefObjec
     const sessionCreationInFlightRef = useRef(false)
     const lastSeenTopicKeyRef = useRef<string | null>(null)
     const shouldRevealNextTaskRef = useRef(false)
+    const profileRef = useRef<UserProfile | null>(null)
+    const lastSessionStatusRef = useRef<string | null>(null)
+    const lastDomainIndexRef = useRef<number | null>(null)
+    const lastSkillIndexRef = useRef<number | null>(null)
+    const lastTopicIndexRef = useRef<number | null>(null)
     const userId = user?.id
 
     const currentDomain = useMemo(() => getCurrentDomain(session), [session])
@@ -144,15 +153,54 @@ export function useChat2Session(user: User | null, scrollContainerRef?: RefObjec
     }, [dungeonPhase, messages.length, chatScrollStorageKeyForDungeon, scrollContainerRef])
 
     useEffect(() => {
+        profileRef.current = profile
+    }, [profile])
+
+    useEffect(() => {
         if (!userId) return
-        const fetchProfile = async () => {
+        const fetchOrCreateProfile = async () => {
             const supabase = createClient()
             if (!supabase) return
-            const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-            setProfile(data)
+            const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
+            if (data) {
+                setProfile(data)
+                return
+            }
+            if (error?.code === 'PGRST116') {
+                const { data: created } = await supabase
+                    .from('profiles')
+                    .insert({ id: userId, xp: 0, current_level: 1, streak_days: 0 })
+                    .select('*')
+                    .single()
+                if (created) setProfile(created)
+            }
         }
-        void fetchProfile()
+        void fetchOrCreateProfile()
     }, [userId])
+
+    const pushMilestone = useCallback((event: Omit<MilestoneEvent, never>) => {
+        setMilestones(prev => [...prev, { ...event, id: `ms-${Date.now()}-${Math.random()}` }])
+    }, [])
+
+    const awardXP = useCallback(
+        async (gain: number) => {
+            if (!userId) return
+            const currentProfile = profileRef.current
+            if (!currentProfile) return
+            const { newXP, newLevel, leveledUp } = applyXPGain(currentProfile.xp || 0, gain)
+            setProfile(prev => (prev ? { ...prev, xp: newXP, current_level: newLevel } : null))
+            if (leveledUp) setLevelUpModal(newLevel)
+            const supabase = createClient()
+            if (supabase) {
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ xp: newXP, current_level: newLevel })
+                    .eq('id', userId)
+                if (error) console.error('[awardXP] Failed to persist XP:', error)
+            }
+        },
+        [userId]
+    )
 
     useEffect(() => {
         queuedQuestionRef.current = queuedQuestion
@@ -253,6 +301,7 @@ export function useChat2Session(user: User | null, scrollContainerRef?: RefObjec
             setError(null)
             setSelectedProjectId(projectId)
             setQuizOutcomeFeedback(null)
+            setOutcomeAnchorQuestion(null)
             const { data: projectData, error: projectError } = await getProjectLatestSession(projectId, userId)
             if (projectError || !projectData) {
                 setError(projectError || 'Failed to load project')
@@ -298,6 +347,10 @@ export function useChat2Session(user: User | null, scrollContainerRef?: RefObjec
             )
             lastSeenTopicKeyRef.current = getTopicKey(getCurrentTopic(hydratedSession))
             shouldRevealNextTaskRef.current = false
+            lastSessionStatusRef.current = hydratedSession.status
+            lastDomainIndexRef.current = hydratedSession.state?.roadmap_progress?.domain_index ?? 0
+            lastSkillIndexRef.current = hydratedSession.state?.roadmap_progress?.skill_index ?? 0
+            lastTopicIndexRef.current = hydratedSession.state?.current_topic_index ?? null
             setBusy(false)
             setDrawerOpen(false)
         },
@@ -352,55 +405,129 @@ export function useChat2Session(user: User | null, scrollContainerRef?: RefObjec
         dungeonStreamTimerRef.current = window.setInterval(reveal, 18)
     }, [])
 
+    const runMilestonesForTurn = useCallback(
+        async (payload: AgentTurnPayload, data: AgentSessionResponse, sessionBeforeTurn: AgentSessionResponse | null) => {
+            const prevStatus = lastSessionStatusRef.current
+            const nextStatus = data.status
+            const nextDomainIdx = data.state?.roadmap_progress?.domain_index ?? 0
+            const nextSkillIdx = data.state?.roadmap_progress?.skill_index ?? 0
+
+            if (payload.input_mode === 'multiple_choice') {
+                if (data.state?.last_quiz_correct === true) {
+                    pushMilestone({ type: 'quiz_perfect', title: 'Correct answer!', xpGained: XP_REWARDS.QUIZ_CORRECT })
+                    await awardXP(XP_REWARDS.QUIZ_CORRECT)
+                } else {
+                    await awardXP(XP_REWARDS.MESSAGE_SENT)
+                }
+            } else if (lastDomainIndexRef.current !== null && nextDomainIdx > lastDomainIndexRef.current) {
+                const prevDomainTitle =
+                    sessionBeforeTurn?.roadmap?.domains?.[lastDomainIndexRef.current]?.title || 'Domain complete'
+                pushMilestone({ type: 'domain_complete', title: prevDomainTitle, xpGained: XP_REWARDS.DOMAIN_COMPLETE })
+                await awardXP(XP_REWARDS.DOMAIN_COMPLETE)
+            } else if (
+                lastSkillIndexRef.current !== null &&
+                nextSkillIdx !== lastSkillIndexRef.current &&
+                nextDomainIdx === (lastDomainIndexRef.current ?? 0)
+            ) {
+                const prevSkillTitle =
+                    sessionBeforeTurn?.roadmap?.domains?.[nextDomainIdx]?.subdomains?.[lastSkillIndexRef.current]?.title ||
+                    'Skill mastered'
+                pushMilestone({ type: 'skill_complete', title: prevSkillTitle, xpGained: XP_REWARDS.SKILL_COMPLETE })
+                await awardXP(XP_REWARDS.SKILL_COMPLETE)
+            } else if (nextStatus === 'reviewing_topic') {
+                const nextTopicIdx = data.state?.current_topic_index ?? 0
+                const prevTopicIdx = lastTopicIndexRef.current
+                const topicAdvanced = prevTopicIdx !== null && nextTopicIdx > prevTopicIdx
+                const freshTopic = prevTopicIdx === null && prevStatus !== 'reviewing_topic'
+                if (topicAdvanced || freshTopic) {
+                    const lessonPlan = data.state?.lesson_plan ?? []
+                    const topicTitle = String(
+                        (lessonPlan[nextTopicIdx] as Record<string, unknown>)?.title || 'Topic complete'
+                    )
+                    pushMilestone({ type: 'topic_complete', title: topicTitle, xpGained: XP_REWARDS.TOPIC_COMPLETE })
+                    await awardXP(XP_REWARDS.TOPIC_COMPLETE)
+                } else {
+                    await awardXP(XP_REWARDS.MESSAGE_SENT)
+                }
+                lastTopicIndexRef.current = nextTopicIdx
+            } else {
+                await awardXP(XP_REWARDS.MESSAGE_SENT)
+            }
+
+            lastSessionStatusRef.current = nextStatus
+            lastDomainIndexRef.current = nextDomainIdx
+            lastSkillIndexRef.current = nextSkillIdx
+        },
+        [pushMilestone, awardXP]
+    )
+
     const continueSession = useCallback(
         async (payload: AgentTurnPayload, postStream?: (response: AgentSessionResponse) => void) => {
             if (!session || !userId) return null
+            const sessionBeforeTurn = session
             setBusy(true)
             setError(null)
             shouldRevealNextTaskRef.current = true
-            const { data, error: requestError } = await sendAgentMessage(session.session_id, payload)
-            if (requestError || !data) {
-                setError(requestError || 'Failed to send message')
+            try {
+                const { data, error: requestError } = await sendAgentMessage(session.session_id, payload)
+                if (requestError || !data) {
+                    setError(requestError || 'Failed to send message')
+                    setBusy(false)
+                    return null
+                }
+                const { data: syncedSession } = await getAgentSession(data.session_id)
+                const nextSession = syncedSession ? hydrateSession(syncedSession) : data
+                setSession(nextSession)
+                setSelectedProjectId(prev => data.project_id || prev)
+
+                const streamToDungeon =
+                    nextSession.status === 'awaiting_topic_dungeon' && payload.input_mode !== 'dungeon_dismiss'
+                const shouldStream =
+                    shouldAppendAssistantTimelineMessage(data) &&
+                    Boolean((typeof data.message === 'string' ? data.message : '').trim())
+
+                const finishTurn = async () => {
+                    await refreshProjects(data.project_id || selectedProjectId || undefined)
+                    setBusy(false)
+                    const p = profileRef.current
+                    if (p) {
+                        const newXP = p.xp + 10
+                        setProfile(prev => (prev ? { ...prev, xp: newXP } : null))
+                        const supabase = createClient()
+                        if (supabase) await supabase.from('profiles').update({ xp: newXP }).eq('id', userId)
+                    }
+                    postStream?.(data)
+                }
+
+                if (shouldStream) {
+                    const text = typeof data.message === 'string' ? data.message : String(data.message ?? '')
+                    if (streamToDungeon) {
+                        streamDungeonAssistantMessage(text, finishTurn)
+                    } else {
+                        streamAssistantMessage(text, finishTurn)
+                    }
+                } else {
+                    void finishTurn()
+                }
+
+                await runMilestonesForTurn(payload, data, sessionBeforeTurn)
+
+                return data
+            } catch {
+                setError('An unexpected error occurred')
                 setBusy(false)
                 return null
             }
-            const { data: syncedSession } = await getAgentSession(data.session_id)
-            const nextSession = syncedSession ? hydrateSession(syncedSession) : data
-            setSession(nextSession)
-            setSelectedProjectId(prev => data.project_id || prev)
-
-            const streamToDungeon = nextSession.status === 'awaiting_topic_dungeon' && payload.input_mode !== 'dungeon_dismiss'
-            const shouldStream =
-                shouldAppendAssistantTimelineMessage(data) && Boolean((typeof data.message === 'string' ? data.message : '').trim())
-
-            const finishTurn = async () => {
-                await refreshProjects(data.project_id || selectedProjectId || undefined)
-                setBusy(false)
-                setProfile(prev => {
-                    if (!prev) return prev
-                    const newXP = prev.xp + 10
-                    void (async () => {
-                        const supabase = createClient()
-                        if (supabase) await supabase.from('profiles').update({ xp: newXP }).eq('id', userId)
-                    })()
-                    return { ...prev, xp: newXP }
-                })
-                postStream?.(data)
-            }
-
-            if (shouldStream) {
-                const text = typeof data.message === 'string' ? data.message : String(data.message ?? '')
-                if (streamToDungeon) {
-                    streamDungeonAssistantMessage(text, finishTurn)
-                } else {
-                    streamAssistantMessage(text, finishTurn)
-                }
-            } else {
-                void finishTurn()
-            }
-            return data
         },
-        [session, userId, refreshProjects, streamAssistantMessage, streamDungeonAssistantMessage, selectedProjectId]
+        [
+            session,
+            userId,
+            refreshProjects,
+            streamAssistantMessage,
+            streamDungeonAssistantMessage,
+            selectedProjectId,
+            runMilestonesForTurn,
+        ]
     )
 
     const startSession = useCallback(
@@ -427,10 +554,15 @@ export function useChat2Session(user: User | null, scrollContainerRef?: RefObjec
                     return
                 }
                 const { data: syncedSession } = await getAgentSession(data.session_id)
-                setSession(syncedSession ? hydrateSession(syncedSession) : data)
+                const resolvedSession = syncedSession ? hydrateSession(syncedSession) : data
+                setSession(resolvedSession)
                 setSelectedProjectId(data.project_id || null)
                 setIsRoadmapLoading(false)
                 setRoadmapRevealLabel(toRoadmapLabel(data.roadmap?.normalized_title || data.roadmap?.query || query))
+                lastSessionStatusRef.current = resolvedSession.status
+                lastDomainIndexRef.current = resolvedSession.state?.roadmap_progress?.domain_index ?? 0
+                lastSkillIndexRef.current = resolvedSession.state?.roadmap_progress?.skill_index ?? 0
+                lastTopicIndexRef.current = resolvedSession.state?.current_topic_index ?? null
                 await refreshProjects(data.project_id || undefined)
                 setBusy(false)
             } finally {
@@ -468,7 +600,6 @@ export function useChat2Session(user: User | null, scrollContainerRef?: RefObjec
             }
         }
         void init()
-        // Intentionally mirror /chat: run once per user after mount (not on every callback identity change).
         // eslint-disable-next-line react-hooks/exhaustive-deps -- stable init gate
     }, [hasInitialized, userId])
 
@@ -669,8 +800,13 @@ export function useChat2Session(user: User | null, scrollContainerRef?: RefObjec
         setTaskReveal(null)
         lastSeenTopicKeyRef.current = null
         shouldRevealNextTaskRef.current = false
+        lastSessionStatusRef.current = null
+        lastDomainIndexRef.current = null
+        lastSkillIndexRef.current = null
+        lastTopicIndexRef.current = null
         setDrawerOpen(false)
         setQuizOutcomeFeedback(null)
+        setOutcomeAnchorQuestion(null)
         setDungeonPhase('hidden')
         setDungeonMessages([])
         setDungeonInput('')
@@ -749,8 +885,12 @@ export function useChat2Session(user: User | null, scrollContainerRef?: RefObjec
         placeholder,
         drawerOpen,
         setDrawerOpen,
-        dashboardStubOpen,
-        setDashboardStubOpen,
+        isDashboardOpen,
+        setIsDashboardOpen,
+        levelUpModal,
+        setLevelUpModal,
+        milestones,
+        setMilestones,
         currentDomain,
         currentSkill,
         currentTopic,

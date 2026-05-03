@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogIn, LogOut, Loader2, Sparkles } from "lucide-react";
+import { LogIn, LogOut, Loader2, Sparkles, ArrowRight } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import RuixenMoonChat from "@/components/ui/ruixen-moon-chat";
@@ -97,14 +97,35 @@ export default function Home() {
         )}
       </div>
 
-      {/* Logo top-left */}
-      <div className="absolute top-6 left-4 sm:left-8 z-20">
+      {/* Logo + chat shortcut */}
+      <div className="absolute top-6 left-4 sm:left-8 z-20 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-lg">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <span className="text-sm font-bold text-white drop-shadow-lg">Career AI</span>
         </div>
+
+        <motion.div
+          whileHover={{ scale: 1.04, y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: "spring", stiffness: 420, damping: 24 }}
+        >
+          <Link
+            href="/chat"
+            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-white/20 bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-950/40 backdrop-blur-md transition-[box-shadow,border-color] duration-300 hover:border-blue-400/45 hover:shadow-[0_0_28px_-6px_rgba(59,130,246,0.55)]"
+          >
+            <span
+              className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              style={{
+                background:
+                  "linear-gradient(105deg, rgba(59,130,246,0.18) 0%, rgba(168,85,247,0.14) 50%, transparent 75%)",
+              }}
+            />
+            <span className="relative">Workspace</span>
+            <ArrowRight className="relative h-4 w-4 shrink-0 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
+          </Link>
+        </motion.div>
       </div>
 
       {/* Main chat UI */}

@@ -2,9 +2,13 @@
 
 The chat page is now a frontend shell for the backend multi-agent runtime, not a generic streaming chatbot.
 
+The `/chat2` route permanently redirects to `/chat` for older bookmarks.
+
 Core files:
 
 - `/Users/talibmirza/Desktop/Projectia/AI-Career-app/frontend/app/chat/page.tsx`
+- `/Users/talibmirza/Desktop/Projectia/AI-Career-app/frontend/app/chat/layout.tsx`
+- `/Users/talibmirza/Desktop/Projectia/AI-Career-app/frontend/app/chat/hooks/useChatSession.ts`
 - `/Users/talibmirza/Desktop/Projectia/AI-Career-app/frontend/app/lib/agent-api.ts`
 - `/Users/talibmirza/Desktop/Projectia/AI-Career-app/frontend/types/index.ts`
 

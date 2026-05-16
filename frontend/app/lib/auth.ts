@@ -1,12 +1,13 @@
 /**
  * Authentication Service
- * 
+ *
  * Provides authentication functions using Supabase Auth.
- * All auth operations happen on the frontend only.
+ * Uses the same browser client as AuthProvider (`@/lib/supabase/client`)
+ * so sessions (including anonymous) match JWT used for API calls.
  */
 
-import { supabase } from "./supabase";
-import type { User, Session, AuthError } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
+import type { User, Session, AuthError, AuthChangeEvent } from "@supabase/supabase-js";
 
 export interface AuthResult {
   user: User | null;
@@ -53,6 +54,10 @@ export async function signUp(
   email: string,
   password: string
 ): Promise<AuthResult> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { user: null, session: null, error: { message: "Auth not configured" } as AuthError };
+  }
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -83,6 +88,10 @@ export async function signIn(
   email: string,
   password: string
 ): Promise<AuthResult> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { user: null, session: null, error: { message: "Auth not configured" } as AuthError };
+  }
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -107,6 +116,10 @@ export async function signIn(
  * Sign out the current user
  */
 export async function signOut(): Promise<{ error: AuthError | null }> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { error: null };
+  }
   const { error } = await supabase.auth.signOut();
   return { error };
 }
@@ -115,6 +128,10 @@ export async function signOut(): Promise<{ error: AuthError | null }> {
  * Get the current session
  */
 export async function getSession(): Promise<Session | null> {
+  const supabase = createClient();
+  if (!supabase) {
+    return null;
+  }
   const { data } = await supabase.auth.getSession();
   return data.session;
 }
@@ -123,6 +140,10 @@ export async function getSession(): Promise<Session | null> {
  * Get the current user
  */
 export async function getUser(): Promise<User | null> {
+  const supabase = createClient();
+  if (!supabase) {
+    return null;
+  }
   const { data } = await supabase.auth.getUser();
   return data.user;
 }
@@ -143,14 +164,17 @@ export async function getAccessToken(): Promise<string | null> {
 export function onAuthStateChange(
   callback: (user: User | null, session: Session | null) => void
 ) {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    (event, session) => {
-      callback(session?.user ?? null, session);
-    }
-  );
+  const supabase = createClient();
+  if (!supabase) {
+    return () => {};
+  }
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+    callback(session?.user ?? null, session);
+  });
 
   return () => subscription.unsubscribe();
 }
 
 export { parseAuthError };
-

@@ -1,4 +1,6 @@
-"""Career normalization service using a cheap fixed model."""
+"""Normalize free-form learning goals into a short snake_case label for logging and UI metadata.
+
+The input may be a career, course, concept, idea, hobby, project, skill — not necessarily a job title."""
 
 from __future__ import annotations
 
@@ -9,22 +11,34 @@ import httpx
 from app.core.config import settings
 
 
-NORMALIZE_PROMPT = """Normalize the following user career goal into a concise canonical career identifier.
-Return ONLY a snake_case career title with no extra text.
+NORMALIZE_PROMPT = """The user describes something they want to learn or explore. It might be:
+- a career or job path
+- a course or credential track
+- a concept, theory, or field of study
+- a product idea, side project, or creative goal
+- a skill, tool, stack, or hobby
 
-Example outputs:
-ai_engineer
-dentist
-frontend_developer
-data_scientist
+Produce ONE concise snake_case identifier that captures the core learning focus (not a full sentence).
+Return ONLY that identifier, no quotes or explanation.
 
-User goal:
+Examples:
+ai_engineering
+watercolor_fundamentals
+stoicism_intro
+validate_saas_idea
+dental_hygiene_board_prep
+rust_async_concurrency
+figma_ui_systems
+
+User input:
 {user_query}
 """
 
 
 class CareerNormalizer:
-    async def normalize_career(self, query: str) -> str:
+    """Backward-compatible name; normalizes arbitrary learning intents, not only careers."""
+
+    async def normalize_learning_focus(self, query: str) -> str:
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is not set")
 
@@ -33,7 +47,7 @@ class CareerNormalizer:
             "model": "gpt-4o-mini",
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0,
-            "max_tokens": 32,
+            "max_tokens": 48,
         }
         headers = {
             "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
@@ -52,6 +66,10 @@ class CareerNormalizer:
 
         if not normalized:
             fallback = re.sub(r"[^a-z0-9]+", "_", query.lower())
-            normalized = re.sub(r"_+", "_", fallback).strip("_") or "career_goal"
+            normalized = re.sub(r"_+", "_", fallback).strip("_") or "learning_goal"
 
         return normalized
+
+    async def normalize_career(self, query: str) -> str:
+        """Deprecated alias for ``normalize_learning_focus``."""
+        return await self.normalize_learning_focus(query)

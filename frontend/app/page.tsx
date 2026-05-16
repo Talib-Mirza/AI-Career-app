@@ -53,7 +53,7 @@ export default function Home() {
                 Preparing Your Journey
               </p>
               <h2 className="text-2xl sm:text-3xl font-bold text-white">
-                Building your personalized roadmap for{" "}
+                Shaping your learning path for{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
                   {navigatingGoal}
                 </span>
@@ -103,7 +103,7 @@ export default function Home() {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-lg">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
-          <span className="text-sm font-bold text-white drop-shadow-lg">Career AI</span>
+          <span className="text-sm font-bold text-white drop-shadow-lg">Learn Anything</span>
         </div>
 
         <motion.div
@@ -122,7 +122,7 @@ export default function Home() {
                   "linear-gradient(105deg, rgba(59,130,246,0.18) 0%, rgba(168,85,247,0.14) 50%, transparent 75%)",
               }}
             />
-            <span className="relative">Workspace</span>
+            <span className="relative">Learning hub</span>
             <ArrowRight className="relative h-4 w-4 shrink-0 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
           </Link>
         </motion.div>

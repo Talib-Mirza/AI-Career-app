@@ -25,7 +25,7 @@ const ACHIEVEMENTS = [
     { id: 'first_chat', title: 'First Steps', desc: 'Started your first conversation', icon: Rocket, xpThreshold: 0 },
     { id: 'quiz_taker', title: 'Quiz Taker', desc: 'Completed your first quiz', icon: Brain, xpThreshold: 20 },
     { id: 'streak_3', title: 'On a Roll', desc: '3-day learning streak', icon: Flame, xpThreshold: 50 },
-    { id: 'roadmap_gen', title: 'Path Finder', desc: 'Generated your first roadmap', icon: Map, xpThreshold: 30 },
+    { id: 'roadmap_gen', title: 'Path Finder', desc: 'Built your first learning path', icon: Map, xpThreshold: 30 },
     { id: 'level_5', title: 'Rising Star', desc: 'Reached level 5', icon: Star, xpThreshold: 100 },
     { id: 'xp_250', title: 'Knowledge Seeker', desc: 'Earned 250 XP', icon: Lightbulb, xpThreshold: 250 },
     { id: 'xp_500', title: 'Expert Path', desc: 'Earned 500 XP', icon: GraduationCap, xpThreshold: 500 },
@@ -108,7 +108,7 @@ export function DashboardSection({ profile, isOpen, onClose }: DashboardSectionP
                                 </motion.div>
                                 <div>
                                     <h3 className="text-lg font-semibold tracking-[0.02em]">
-                                        {profile?.display_name || 'Career Explorer'}
+                                        {profile?.display_name || 'Explorer'}
                                     </h3>
                                     <p className="text-xs font-medium text-[color:var(--ink-faint)]">
                                         {level < 3 ? 'Apprentice' : level < 6 ? 'Journeyman' : level < 10 ? 'Expert' : 'Master'}

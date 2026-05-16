@@ -103,8 +103,8 @@ class BaseAgent:
             tool_trace=tool_trace,
         )
 
-    def _build_messages(self, *, context: AgentContext, scratchpad: list[dict[str, Any]]) -> list[dict[str, str]]:
-        tool_block = json.dumps(
+    def _tool_block_text(self) -> str:
+        return json.dumps(
             [
                 {
                     "name": tool.name,
@@ -115,31 +115,10 @@ class BaseAgent:
             ],
             indent=2,
         )
-        scratchpad_text = json.dumps(scratchpad, indent=2, ensure_ascii=False)
-        state_text = json.dumps(context.state, indent=2, ensure_ascii=False)
-        metadata_for_prompt = {
-            k: v
-            for k, v in (context.metadata or {}).items()
-            if not callable(v) and not (isinstance(v, dict) and any(callable(x) for x in v.values()))
-        }
-        if (context.metadata or {}).get("tool_host"):
-            metadata_for_prompt["tool_host"] = (
-                "injected at runtime (e.g. request_next_quiz when the session is awaiting topic-quiz consent)"
-            )
-        metadata_text = json.dumps(metadata_for_prompt, indent=2, ensure_ascii=False)
 
-        user_prompt = (
-            "Session context:\n"
-            f"{state_text}\n\n"
-            "Invocation metadata:\n"
-            f"{metadata_text}\n\n"
-            "Latest user message:\n"
-            f"{context.user_message}\n\n"
-            "Tool trace so far:\n"
-            f"{scratchpad_text}\n"
-        )
-
-        system_prompt = (
+    def _compose_system_prompt(self) -> str:
+        tool_block = self._tool_block_text()
+        return (
             f"{self.instruction}\n\n"
             "All user-facing content must be valid Markdown. Use headings, lists, tables, blockquotes, and fenced code blocks when helpful.\n\n"
             "You are operating in a strict ReAct runtime.\n"
@@ -157,8 +136,43 @@ class BaseAgent:
             "}\n"
             "Use 'pause' when you need the user to answer questions before continuing.\n"
             "Use 'final' only when you have a complete response for the current orchestration stage.\n"
+            "Do not put conversation_state.history (transcript) inside state_patch; merge only phase fields when needed.\n"
         )
 
+    def _compose_user_prompt(
+        self,
+        *,
+        state: dict[str, Any],
+        context: AgentContext,
+        scratchpad: list[dict[str, Any]],
+    ) -> str:
+        scratchpad_text = json.dumps(scratchpad, indent=2, ensure_ascii=False)
+        state_text = json.dumps(state, indent=2, ensure_ascii=False)
+        metadata_for_prompt = {
+            k: v
+            for k, v in (context.metadata or {}).items()
+            if not callable(v) and not (isinstance(v, dict) and any(callable(x) for x in v.values()))
+        }
+        if (context.metadata or {}).get("tool_host"):
+            metadata_for_prompt["tool_host"] = (
+                "injected at runtime (e.g. request_next_quiz when the session is awaiting topic-quiz consent)"
+            )
+        metadata_text = json.dumps(metadata_for_prompt, indent=2, ensure_ascii=False)
+
+        return (
+            "Session context:\n"
+            f"{state_text}\n\n"
+            "Invocation metadata:\n"
+            f"{metadata_text}\n\n"
+            "Latest user message:\n"
+            f"{context.user_message}\n\n"
+            "Tool trace so far:\n"
+            f"{scratchpad_text}\n"
+        )
+
+    def _build_messages(self, *, context: AgentContext, scratchpad: list[dict[str, Any]]) -> list[dict[str, str]]:
+        system_prompt = self._compose_system_prompt()
+        user_prompt = self._compose_user_prompt(state=context.state, context=context, scratchpad=scratchpad)
         return [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},

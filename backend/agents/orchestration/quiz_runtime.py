@@ -14,8 +14,6 @@ IDONT_KNOW_OPTION_LABEL = "I don't know"
 
 class QuizRuntimeMixin:
     async def _pending_questions_for_session(self, session: dict[str, Any]) -> list[AgentQuestion]:
-        if session["status"] == "awaiting_profile":
-            return [self._reading_level_question()]
         active_quiz_id = (session.get("state") or {}).get("active_quiz_id")
         if not active_quiz_id:
             return []
@@ -331,7 +329,7 @@ class QuizRuntimeMixin:
         selected_index: int,
         is_correct: bool,
     ) -> QuizOutcomeFeedback | None:
-        """LLM explanation for topic/skill/domain quizzes only (not placement/profile)."""
+        """LLM explanation for topic/skill/domain quizzes only (not placement)."""
         kind = str(quiz.get("question_kind") or "")
         if kind not in {"topic_quiz", "skill_quiz", "domain_quiz"}:
             return None

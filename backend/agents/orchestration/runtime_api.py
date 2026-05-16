@@ -16,18 +16,23 @@ from app.models.agent import (
 )
 
 
+ANONYMOUS_MAX_PROJECTS = 1
+ANONYMOUS_MAX_USER_MESSAGES = 30
+
+
 class RuntimeApiMixin:
-    async def create_session(self, *, user_id: str, query: str, learning_style: str | None = None) -> AgentSessionResponse:
+    async def create_session(self, *, user_id: str, query: str, learning_style: str | None = None, is_anonymous: bool = False) -> AgentSessionResponse:
+        if is_anonymous:
+            existing = await self.store.list_projects(user_id)
+            if len(existing) >= ANONYMOUS_MAX_PROJECTS:
+                raise ValueError(
+                    "Guest accounts are limited to one learning path. Create a free account to start additional topics."
+                )
+
         roadmap = await self.roadmap_agent.generate(query=query)
         project_id = str(uuid.uuid4())
         session_id = str(uuid.uuid4())
         state = self._initial_state(roadmap=roadmap, learning_style=learning_style)
-        profile = await self.store.get_profile(user_id)
-        reading_level = str((profile or {}).get("reading_level") or "").strip() or None
-        if reading_level:
-            state["profile_answers"] = [{"id": "reading_level", "prompt": "What is your reading level?", "answer": reading_level}]
-            state["learner_profile"] = {"reading_level": reading_level}
-            state["onboarding"] = {"current_index": 0, "completed": True}
 
         project = await self.store.create_project(
             {
@@ -140,10 +145,17 @@ class RuntimeApiMixin:
         events = await self.store.list_events(session_id)
         return [self._event_response(event) for event in events]
 
-    async def handle_user_message(self, *, session_id: str, turn: AgentTurnRequest) -> AgentSessionResponse:
+    async def handle_user_message(self, *, session_id: str, turn: AgentTurnRequest, is_anonymous: bool = False) -> AgentSessionResponse:
         session = await self.store.get_session(session_id)
         if str(session["user_id"]) != turn.user_id:
             raise ValueError("User does not match the active session")
+
+        if is_anonymous:
+            prior_messages = await self.store.count_user_message_events(turn.user_id)
+            if prior_messages >= ANONYMOUS_MAX_USER_MESSAGES:
+                raise ValueError(
+                    "Guest accounts are limited to 30 messages. Create a free account to continue the conversation."
+                )
 
         user_content = turn.message
         if turn.input_mode == "quiz_ready":
@@ -175,8 +187,6 @@ class RuntimeApiMixin:
         status = session["status"]
         if status == "awaiting_start_mode":
             response = await self._handle_start_mode(session, turn)
-        elif status == "awaiting_profile":
-            response = await self._handle_profile(session, turn)
         elif status == "awaiting_knowledge_answer":
             response = await self._handle_knowledge_turn(session, turn)
         elif status == "awaiting_focus_confirm":
@@ -198,29 +208,6 @@ class RuntimeApiMixin:
         await self._persist_assistant_response(persisted_session, response)
         return response
 
-    async def _handle_profile(self, session: dict[str, Any], turn: AgentTurnRequest) -> AgentSessionResponse:
-        state = session["state"]
-        question = self._reading_level_question()
-        selected_index = self._selected_index_from_turn(turn, question.options)
-        answer = question.options[selected_index].label
-        state["profile_answers"] = [{"id": question.id, "prompt": question.prompt, "answer": answer}]
-        state["learner_profile"] = {"reading_level": answer}
-        state["onboarding"] = {"current_index": 0, "completed": True}
-
-        await self.store.update_profile(session["user_id"], {"reading_level": answer})
-        if state.get("learning_path_mode") == "beginning":
-            return await self._start_guided_skill(
-                session=session,
-                state=state,
-                intro=f"Saved your profile. Starting from the beginning of your roadmap.",
-            )
-
-        return await self._start_placement_flow(
-            session=session,
-            state=state,
-            intro=f"Saved your profile. Starting placement calibration.",
-        )
-
     async def _handle_start_mode(self, session: dict[str, Any], turn: AgentTurnRequest) -> AgentSessionResponse:
         state = session["state"]
         choice = str(turn.selected_option_id or "").strip()
@@ -228,40 +215,18 @@ class RuntimeApiMixin:
             raise ValueError("Start mode must be either 'beginning' or 'placement'")
 
         state["learning_path_mode"] = choice
-        reading_level = str((state.get("learner_profile") or {}).get("reading_level") or "").strip()
 
         if choice == "beginning":
-            if reading_level:
-                return await self._start_guided_skill(
-                    session=session,
-                    state=state,
-                    intro=f"Using your saved profile. Starting from the beginning of your roadmap.",
-                )
-            updated = await self.store.update_session(
-                session["id"],
-                {"status": "awaiting_profile", "active_agent": "quiz_agent", "state": state},
-            )
-            return self._session_response(
-                updated,
-                message="You chose to start from the beginning. First, answer a quick profile question about reading comfort with technical material.",
-                pending_questions=[self._reading_level_question()],
-            )
-
-        if reading_level:
-            return await self._start_placement_flow(
+            return await self._start_guided_skill(
                 session=session,
                 state=state,
-                intro="Using your saved profile. Starting placement calibration.",
+                intro="Starting from the beginning of your roadmap.",
             )
 
-        updated = await self.store.update_session(
-            session["id"],
-            {"status": "awaiting_profile", "active_agent": "quiz_agent", "state": state},
-        )
-        return self._session_response(
-            updated,
-            message="You chose the placement test. First, answer a quick profile question about reading comfort with technical material.",
-            pending_questions=[self._reading_level_question()],
+        return await self._start_placement_flow(
+            session=session,
+            state=state,
+            intro="Starting placement calibration.",
         )
 
     async def _start_placement_flow(

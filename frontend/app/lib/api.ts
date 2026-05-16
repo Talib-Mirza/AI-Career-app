@@ -76,9 +76,15 @@ async function request<T>(
   // Attach JWT token if authentication is required
   if (requireAuth) {
     const token = await getAccessToken();
-    if (token) {
-      (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+    if (!token) {
+      return {
+        data: null,
+        error:
+          "No session token. Wait for sign-in to finish or refresh the page.",
+        status: 401,
+      };
     }
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
 
   try {

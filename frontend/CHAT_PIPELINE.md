@@ -19,7 +19,7 @@ What it does:
 - renders backend-owned state directly
 - shows the current domain, current skill, and current topic
 - treats the assistant message as the only active prompt shown to the user
-- runs sequential onboarding questions before knowledge calibration
+- shows placement / lesson quizzes from the backend when `pending_questions` is set
 - supports anchor-and-backfill knowledge calibration instead of repeating the same probe
 - stores local transcript/session snapshots for convenience
 - emits focused console logs for key state transitions

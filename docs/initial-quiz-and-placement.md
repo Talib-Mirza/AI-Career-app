@@ -4,24 +4,18 @@ This document explains the current BKT-based initial quiz flow, how the backend 
 
 ## Short Answer
 
-The initial quiz is still a two-stage flow:
+The initial quiz flow is placement only:
 
-1. A profile question for reading level, unless the user already has one saved
-2. A sequence of AI-authored placement probes whose answers update Bayesian Knowledge Tracing probabilities for roadmap skills
+1. After the learner chooses **beginning** vs **placement** (start mode), the backend starts either guided playback or BKT placement.
+2. A sequence of AI-authored placement probes updates Bayesian Knowledge Tracing probabilities for roadmap skills
 
 The system no longer brackets the learner with a midpoint search. It now chooses the next skill by expected information gain over durable skill probabilities.
 
 ## What Counts As The Initial Quiz
 
-At session start, the backend creates or reuses a roadmap first. Then it decides between two paths:
+At session start, the backend generates a new roadmap from the user's goal. The learner then picks start mode (**beginning** or **placement**). The first quiz they see is a BKT-driven placement probe (or they enter guided mode with no prior profile quiz).
 
-- No saved reading level: ask `What is your reading level?`
-- Saved reading level: skip onboarding and start placement immediately
-
-So the first quiz a learner sees may be:
-
-- the onboarding profile question, or
-- a BKT-driven placement probe
+So the first quiz a learner sees is a placement probe when they choose placement.
 
 ## End-To-End Request Path
 
@@ -41,15 +35,14 @@ sequenceDiagram
     API->>ORCH: create_session(user_id, query)
     ORCH->>DB: create project/session/events
     ORCH->>KStore: seed project skill state
+    ORCH-->>UI: awaiting_start_mode
 
-    alt no saved reading level
-        ORCH-->>UI: pending profile question
-        UI->>API: multiple_choice answer
-        API->>ORCH: _handle_profile()
-    end
+    UI->>API: start_mode placement or beginning
+    API->>ORCH: _handle_start_mode()
+    Note over ORCH: beginning → guided skill; placement → binary placement + probe
 
-    ORCH->>KStore: select_next_skill()
-    KStore-->>ORCH: skill + posterior + information score
+    ORCH->>KStore: select_next_skill / refresh state
+    KStore-->>ORCH: skill + posteriors
     ORCH->>KA: plan_placement_probe()
     KA-->>ORCH: focus + difficulty + intro
     ORCH->>QA: generate()
@@ -72,42 +65,7 @@ sequenceDiagram
     end
 ```
 
-## Stage 1: Reading-Level Profile Question
-
-The reading-level question is defined in `backend/agents/orchestration/core_state.py` as `_reading_level_question()`.
-
-Available answers:
-
-- `<5th Grade`
-- `6-8th grade`
-- `high school`
-- `university`
-
-When the user answers:
-
-1. `RuntimeApiMixin._handle_profile()` resolves the selected option
-2. The answer is stored in:
-   - `state.profile_answers`
-   - `state.learner_profile.reading_level`
-3. The answer is persisted to `profiles.reading_level`
-4. The orchestrator seeds project skill state and starts the first BKT placement probe
-
-## Why Reading Level Still Matters
-
-Reading level does not change the BKT math. It changes how questions and explanations are written.
-
-It is threaded into prompts through:
-
-- `BaseAgent._build_messages()`
-- `QuizAgent.generate()`
-
-That affects:
-
-- wording complexity
-- explanation complexity
-- teaching tone
-
-## Stage 2: BKT Skill-State Seeding
+## Stage 1: BKT Skill-State Seeding
 
 Before placement starts, the backend seeds durable skill state for every roadmap skill:
 
@@ -259,7 +217,6 @@ That means the BKT state survives beyond initial placement and continues to infl
 
 These are the most useful runtime fields now:
 
-- `state.learner_profile.reading_level`
 - `state.knowledge_state.current_probe`
 - `state.knowledge_state.learning_frontier`
 - `state.knowledge_state.skill_probabilities_summary`

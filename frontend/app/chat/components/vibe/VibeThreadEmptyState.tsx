@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { MapPin } from 'lucide-react'
 
-/** Empty thread before the first message (e.g. new project). Compact, on-brand panel with geometric accents. */
+/** Empty thread before the first message (e.g. new topic). Compact, on-brand panel with geometric accents. */
 export function VibeThreadEmptyState() {
     return (
         <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-1 py-2">
@@ -99,10 +99,10 @@ export function VibeThreadEmptyState() {
                     <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl border border-violet-400/25 bg-gradient-to-br from-violet-500/25 to-teal-500/20 shadow-[0_8px_24px_-12px_rgba(139,92,246,0.5)]">
                         <MapPin className="h-[18px] w-[18px] text-teal-200/90" strokeWidth={2} />
                     </div>
-                    <h2 className="text-[13px] font-semibold tracking-tight text-zinc-100 sm:text-sm">Drop anchor on a goal</h2>
+                    <h2 className="text-[13px] font-semibold tracking-tight text-zinc-100 sm:text-sm">Start with a topic</h2>
                     <p className="mt-1.5 max-w-[13.5rem] text-[11px] leading-snug text-zinc-500 sm:text-xs">
-                        Your thread starts here. Name a career direction below—coaching, roadmap, and practice unlock from your
-                        first message.
+                        Your thread starts here. Describe anything you want to learn below—lessons, path, and practice unlock from
+                        your first message.
                     </p>
                     <div className="mt-3 flex items-center gap-2">
                         <span className="h-px w-6 bg-gradient-to-r from-transparent to-teal-400/40" />

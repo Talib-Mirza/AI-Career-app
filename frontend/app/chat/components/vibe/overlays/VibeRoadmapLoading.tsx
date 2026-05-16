@@ -24,7 +24,7 @@ export function VibeRoadmapLoading({ visible, query }: VibeRoadmapLoadingProps) 
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
                 />
-                <p className="mt-6 text-sm font-medium text-zinc-200">Crafting your roadmap</p>
+                <p className="mt-6 text-sm font-medium text-zinc-200">Crafting your learning path</p>
                 {query ? <p className="mt-2 line-clamp-3 text-xs text-zinc-500">{query}</p> : null}
                 <motion.div
                     className="mt-6 flex gap-1"

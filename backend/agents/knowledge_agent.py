@@ -45,7 +45,6 @@ class KnowledgeAgent(BaseAgent):
                     "Choose the next placement probe.\n\n"
                     f"Candidate skills: {candidate_skills}\n\n"
                     f"Placement state: {placement_state}\n\n"
-                    f"Profile answers: {context.state.get('profile_answers') or []}\n\n"
                     f"Selected skill BKT state: {context.state.get('selected_skill_state') or {}}\n\n"
                     f"Recent placement history: {placement_state.get('global_history') or []}\n\n"
                     f"Latest user message: {context.user_message}"

@@ -10,13 +10,11 @@ The roadmap pipeline turns the user's goal into a structured roadmap of domains 
 
 ## Current Pipeline
 
-1. Normalize the requested career or goal
-2. Attempt retrieval from stored roadmap data
-3. If a close match exists, reuse it
-4. Otherwise generate domains
-5. Generate skills for each domain
-6. Normalize ids, descriptions, and ordering
-7. Return a `RoadmapResponse`
+1. Normalize the user's learning intent into a short snake_case label (career, course, concept, idea, project, etc.)
+2. Generate domains with the LLM (always fresh — no vector reuse from `roadmap_library`)
+3. Generate skills for each domain
+4. Normalize ids, descriptions, and ordering
+5. Return a `RoadmapResponse` with `existing=False`
 
 ## Output Shape
 

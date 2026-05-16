@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Sparkles, X } from 'lucide-react'
@@ -27,10 +27,36 @@ import { VibeTaskFocusModal } from '@/app/chat/components/vibe/overlays/VibeTask
 
 import { useChatSession } from '@/app/chat/hooks/useChatSession'
 
+function LoadingShell() {
+    return (
+        <div className="relative flex h-full min-h-0 min-w-0 flex-col items-center justify-center overflow-x-hidden overflow-y-hidden">
+            <VibeAmbientBackground />
+            <div className="relative z-10 flex flex-col items-center gap-3">
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-teal-400/30 border-t-teal-400" />
+                <p className="text-sm text-zinc-400">Loading…</p>
+            </div>
+        </div>
+    )
+}
+
 export default function ChatPage() {
-    const { user, loading } = useAuth()
+    const { user, loading, isDevUser, isAnonymous, ensureAnonymousSession } = useAuth()
+    const [guestBootError, setGuestBootError] = useState<string | null>(null)
     const messagesScrollRef = useRef<HTMLDivElement>(null)
     const s = useChatSession(user, messagesScrollRef)
+
+    useEffect(() => {
+        if (loading) return
+        if (user || isDevUser) return
+        let cancelled = false
+        void ensureAnonymousSession().then(res => {
+            if (cancelled) return
+            if (!res.ok) setGuestBootError(res.error || 'Could not start guest session.')
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [loading, user, isDevUser, ensureAnonymousSession])
 
     const chatScrollStorageKey = useMemo(
         () => getChatScrollStorageKey({ userId: user?.id, sessionId: s.session?.session_id, projectId: s.selectedProjectId }),
@@ -44,18 +70,10 @@ export default function ChatPage() {
     })
 
     if (loading) {
-        return (
-            <div className="relative flex h-full min-h-0 min-w-0 flex-col items-center justify-center overflow-x-hidden overflow-y-hidden">
-                <VibeAmbientBackground />
-                <div className="relative z-10 flex flex-col items-center gap-3">
-                    <div className="h-10 w-10 animate-spin rounded-full border-2 border-teal-400/30 border-t-teal-400" />
-                    <p className="text-sm text-zinc-400">Loading…</p>
-                </div>
-            </div>
-        )
+        return <LoadingShell />
     }
 
-    if (!user) {
+    if (guestBootError) {
         return (
             <div className="relative flex h-full min-h-0 min-w-0 flex-col items-center justify-center overflow-x-hidden overflow-y-hidden p-6">
                 <VibeAmbientBackground />
@@ -64,20 +82,31 @@ export default function ChatPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="relative z-10 w-full max-w-sm rounded-3xl border border-white/10 bg-zinc-950/70 p-8 text-center shadow-2xl backdrop-blur-xl"
                 >
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-teal-500">
-                        <Sparkles className="h-6 w-6 text-white" />
-                    </div>
-                    <h1 className="mt-5 text-xl font-semibold text-zinc-50">Sign in</h1>
-                    <p className="mt-2 text-sm text-zinc-500">Save projects and progress to your account.</p>
-                    <Link
-                        href="/auth/login"
-                        className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-600 py-3 text-sm font-semibold text-white"
+                    <h1 className="text-xl font-semibold text-zinc-50">Couldn&apos;t start session</h1>
+                    <p className="mt-2 text-sm text-zinc-500">{guestBootError}</p>
+                    <p className="mt-3 text-xs text-zinc-600">
+                        Enable <strong>Anonymous sign-ins</strong> in the Supabase dashboard (Authentication → Providers →
+                        Anonymous).
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setGuestBootError(null)
+                            void ensureAnonymousSession().then(res => {
+                                if (!res.ok) setGuestBootError(res.error || 'Could not start guest session.')
+                            })
+                        }}
+                        className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-white/15 py-3 text-sm font-semibold text-zinc-200 hover:bg-white/5"
                     >
-                        Sign in
-                    </Link>
+                        Retry
+                    </button>
                 </motion.div>
             </div>
         )
+    }
+
+    if (!user && !isDevUser) {
+        return <LoadingShell />
     }
 
     const level = s.profile?.current_level ?? 1
@@ -88,6 +117,19 @@ export default function ChatPage() {
             <VibeAmbientBackground />
             <VibeCornerControls onOpenDrawer={() => s.setDrawerOpen(true)} onOpenDashboard={() => s.setIsDashboardOpen(true)} />
             {s.profile ? <VibeXpPill level={level} xp={xp} /> : null}
+
+            {isAnonymous ? (
+                <div className="pointer-events-none fixed left-1/2 top-[4.25rem] z-30 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 sm:top-5 sm:left-auto sm:right-[4.5rem] sm:translate-x-0">
+                    <div className="pointer-events-auto rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-center shadow-lg backdrop-blur-md sm:text-left">
+                        <p className="text-[11px] leading-snug text-zinc-400">
+                            Browsing as a guest (limits apply).{' '}
+                            <Link href="/auth/signup" className="font-semibold text-teal-300 hover:text-teal-200">
+                                Save your progress
+                            </Link>
+                        </p>
+                    </div>
+                </div>
+            ) : null}
 
             <VibeRoadmapLoading visible={s.isRoadmapLoading} query={s.roadmapCreationQuery} />
 
@@ -177,7 +219,7 @@ export default function ChatPage() {
 
             <VibeRoadmapStartModal
                 visible={s.isStartModeOverlayOpen}
-                roadmapLabel={s.roadmapRevealLabel || 'Your roadmap'}
+                roadmapLabel={s.roadmapRevealLabel || 'Your learning path'}
                 busy={s.busy}
                 onStartAtBeginning={() => void s.handleStartModeSelection('beginning')}
                 onTakePlacementTest={() => void s.handleStartModeSelection('placement')}
@@ -234,6 +276,16 @@ export default function ChatPage() {
                         <p className="mt-1 text-xs text-zinc-400">
                             {typeof s.error === 'string' ? s.error : 'Something went wrong.'}
                         </p>
+                        {isAnonymous &&
+                        typeof s.error === 'string' &&
+                        (s.error.includes('Guest accounts') || s.error.includes('guest')) ? (
+                            <Link
+                                href="/auth/signup"
+                                className="mt-3 inline-block text-xs font-semibold text-teal-400 hover:text-teal-300"
+                            >
+                                Create a free account to continue →
+                            </Link>
+                        ) : null}
                         <button
                             type="button"
                             onClick={() => s.setError(null)}

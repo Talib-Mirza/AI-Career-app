@@ -15,7 +15,7 @@ export function VibeCornerControls({ onOpenDrawer, onOpenDashboard }: VibeCorner
                 type="button"
                 onClick={onOpenDrawer}
                 className="fixed left-5 top-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-zinc-950/50 text-zinc-200 shadow-lg backdrop-blur-md transition hover:border-teal-400/30 hover:bg-zinc-900/70 hover:text-white"
-                aria-label="Open projects"
+                aria-label="Open topics"
             >
                 <Menu className="h-5 w-5" />
             </button>

@@ -6,7 +6,7 @@ This folder is the home for project documentation that describes the current run
 
 - `docs/agent-runtime-overview.md`: End-to-end runtime walkthrough from chat UI to backend orchestration, persistence, teaching, and quizzes.
 - `docs/initial-quiz-and-placement.md`: Detailed explanation of the initial quiz flow, adaptive placement loop, and how the system decides the learner's frontier.
-- `docs/backend/roadmap-agent.md`: Focused notes on roadmap generation and reuse.
+- `docs/backend/roadmap-agent.md`: Focused notes on roadmap generation (always fresh LLM output).
 
 ## Legacy / Reference
 

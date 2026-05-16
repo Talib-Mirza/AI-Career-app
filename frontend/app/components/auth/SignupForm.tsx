@@ -9,7 +9,7 @@ interface SignupFormProps {
 }
 
 export function SignupForm({ onSuccess }: SignupFormProps) {
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, signInWithGoogle, isAnonymous } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -81,8 +81,14 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
     <div className="w-full max-w-md mx-auto">
       <div className="space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Create an account</h1>
-          <p className="text-muted">Start your learning journey today</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            {isAnonymous ? "Save your progress" : "Create an account"}
+          </h1>
+          <p className="text-muted">
+            {isAnonymous
+              ? "Add email and password to keep your topics across devices."
+              : "Start your learning journey today"}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -139,7 +145,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
             disabled={isLoading}
             className="w-full px-6 py-3 text-base font-semibold rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-neutral-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-900 dark:focus:ring-neutral-100 transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
           >
-            {isLoading ? "Creating account..." : "Create account"}
+            {isLoading ? (isAnonymous ? "Saving…" : "Creating account…") : isAnonymous ? "Save account" : "Create account"}
           </button>
         </form>
 

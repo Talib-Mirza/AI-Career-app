@@ -21,9 +21,9 @@ export default function LoginPage() {
     }
   }, [searchParams, router]);
 
-  // Redirect if already authenticated
+  // Redirect if signed in with a permanent account
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && !user.is_anonymous) {
       router.push("/");
     }
   }, [user, loading, router]);
@@ -38,7 +38,7 @@ export default function LoginPage() {
   }
 
   // Don't render form if authenticated (will redirect)
-  if (user) {
+  if (user && !user.is_anonymous) {
     return null;
   }
 

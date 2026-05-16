@@ -1,49 +1,34 @@
 # AI Career App
 
-## Roadmap Reuse System (Supabase + pgvector)
+## Roadmap generation
 
-The roadmap pipeline now supports reuse before generation:
+Each roadmap is generated fresh with the LLM (domains, then skills). A short **learning-focus** label (snake_case) is produced for metadata; it can represent a career, course, concept, idea, project, skill, or similar — not only job titles.
 
-1. Normalize career goal with `gpt-4o-mini`.
-2. Embed normalized title with `text-embedding-3-small`.
-3. Search similar roadmaps in Supabase Postgres + pgvector.
-4. Return existing roadmap when match distance is under threshold.
-5. Otherwise generate roadmap and upsert it to Supabase.
+The `roadmap_library` table and pgvector helpers remain in the database for optional admin cleanup (`DELETE /api/roadmap/cache`), but **generation no longer reads or writes that library**.
 
-## Backend Modules
+## Backend modules
 
 - `backend/agents/roadmap/service.py`
-- `backend/services/career_normalizer.py`
-- `backend/services/roadmap_retriever.py`
-- `backend/services/roadmap_storage.py`
+- `backend/services/career_normalizer.py` (learning-focus normalization)
+- `backend/services/roadmap_storage.py` (cache admin / legacy library)
 - `backend/services/supabase_client.py`
 - `backend/utils/embeddings.py`
-- `supabase/migrations/003_roadmap_library_vector.sql`
+- `supabase/migrations/003_roadmap_library_vector.sql` (schema only)
 
-## Environment Variables
+## Environment variables
 
 Set in `backend/.env`:
 
 - `OPENAI_API_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `ROADMAP_MATCH_THRESHOLD` (e.g. `0.1`)
 
-## Supabase Setup + Local PostgreSQL Cleanup
+## Supabase setup + local PostgreSQL cleanup
 
 See:
 
 - `POSTGRES_SETUP.md`
 
-## Retrieval Response Behavior
+## Generate API response
 
-When a roadmap already exists, API returns:
-
-```json
-{
-  "roadmap": {"query": "...", "domains": []},
-  "existing": true
-}
-```
-
-The `/roadmap` page displays: `Roadmap already exists.`
+`POST /api/roadmap/generate` returns `existing: false` for new generations. Domain JSON files are still written under `backend/roadmaps/` for the standalone roadmap page.

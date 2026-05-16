@@ -282,9 +282,9 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
     const refreshProjects = useCallback(
         async (preferredProjectId?: string) => {
             if (!userId) return []
-            const { data, error: requestError } = await listAgentProjects(userId)
+            const { data, error: requestError } = await listAgentProjects()
             if (requestError || !data) {
-                setError(requestError || 'Failed to load projects')
+                setError(requestError || 'Failed to load topics')
                 return []
             }
             setProjects(data)
@@ -302,9 +302,9 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
             setSelectedProjectId(projectId)
             setQuizOutcomeFeedback(null)
             setOutcomeAnchorQuestion(null)
-            const { data: projectData, error: projectError } = await getProjectLatestSession(projectId, userId)
+            const { data: projectData, error: projectError } = await getProjectLatestSession(projectId)
             if (projectError || !projectData) {
-                setError(projectError || 'Failed to load project')
+                setError(projectError || 'Failed to open this topic')
                 setBusy(false)
                 return
             }
@@ -316,7 +316,7 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
                 setBusy(false)
                 return
             }
-            const { data: eventData, error: eventError } = await listAgentSessionEvents(latestSession.session_id, userId)
+            const { data: eventData, error: eventError } = await listAgentSessionEvents(latestSession.session_id)
             if (eventError || !eventData) {
                 setError(eventError || 'Failed to load session transcript')
                 setBusy(false)
@@ -546,7 +546,7 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
                 shouldRevealNextTaskRef.current = true
                 const learningStyle = sessionStorage.getItem('learning_style')
                 if (learningStyle) sessionStorage.removeItem('learning_style')
-                const { data, error: requestError } = await createAgentSession(userId, query, learningStyle)
+                const { data, error: requestError } = await createAgentSession(query, learningStyle)
                 if (requestError || !data) {
                     setError(requestError || 'Failed to create session')
                     setBusy(false)
@@ -626,7 +626,7 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
                     variant: 'standard',
                 },
             ])
-            await continueSession({ user_id: userId, message: trimmed, input_mode: 'text' })
+            await continueSession({ message: trimmed, input_mode: 'text' })
         },
         [input, busy, userId, session, startSession, continueSession]
     )
@@ -642,7 +642,7 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
                 ...prev,
                 { id: `dungeon-user-${Date.now()}`, role: 'user', content: trimmed, createdAt: new Date().toISOString() },
             ])
-            await continueSession({ user_id: userId, message: trimmed, input_mode: 'text' }, response => {
+            await continueSession({ message: trimmed, input_mode: 'text' }, response => {
                 const d = response.dungeon_turn?.decision_state
                 if (d === 'success' || d === 'failure') {
                     setDungeonOutcome(d)
@@ -669,7 +669,6 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
         if (!selectedOption) return
         setQuizSubmitting(true)
         const response = await continueSession({
-            user_id: userId,
             message: selectedOption.label,
             input_mode: 'multiple_choice',
             question_id: activeQuestion.id,
@@ -707,7 +706,6 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
         async (mode: 'beginning' | 'placement') => {
             if (!session || !userId || busy) return
             const response = await continueSession({
-                user_id: userId,
                 message: mode === 'beginning' ? 'Start at beginning' : 'Take placement test',
                 input_mode: 'start_mode',
                 selected_option_id: mode,
@@ -720,12 +718,12 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
     const handleFocusConfirm = useCallback(async () => {
         setTaskReveal(null)
         if (!session || !userId || busy) return
-        await continueSession({ user_id: userId, message: 'Get started', input_mode: 'focus_confirm' })
+        await continueSession({ message: 'Get started', input_mode: 'focus_confirm' })
     }, [session, userId, busy, continueSession])
 
     const handleQuizReadyFromButton = useCallback(async () => {
         if (!session || !userId || busy || pendingQuestion) return
-        await continueSession({ user_id: userId, message: 'ready', input_mode: 'text' })
+        await continueSession({ message: 'ready', input_mode: 'text' })
     }, [session, userId, busy, pendingQuestion, continueSession])
 
     const handleDungeonStart = useCallback(async () => {
@@ -735,7 +733,7 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
         setDungeonInput('')
         setDungeonOutcome(null)
         const res = await continueSession(
-            { user_id: userId, message: undefined, input_mode: 'dungeon_start' },
+            { message: undefined, input_mode: 'dungeon_start' },
             response => {
                 const d = response.dungeon_turn?.decision_state
                 if (d === 'success' || d === 'failure') {
@@ -751,7 +749,7 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
 
     const handleDungeonAbort = useCallback(async () => {
         if (!session || !userId || busy) return
-        await continueSession({ user_id: userId, message: undefined, input_mode: 'dungeon_abort' }, () => {
+        await continueSession({ message: undefined, input_mode: 'dungeon_abort' }, () => {
             snapLectureAfterDungeonExitRef.current = true
             setDungeonPhase('hidden')
             setDungeonMessages([])
@@ -767,7 +765,7 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
             window.setTimeout(r, 900)
         })
         const res = await continueSession(
-            { user_id: userId, message: undefined, input_mode: 'dungeon_dismiss' },
+            { message: undefined, input_mode: 'dungeon_dismiss' },
             () => {
                 snapLectureAfterDungeonExitRef.current = true
                 setDungeonMessages([])
@@ -817,12 +815,12 @@ export function useChatSession(user: User | null, scrollContainerRef?: RefObject
         async (projectId: string) => {
             if (!userId || busy) return
             const target = projects.find(p => p.id === projectId)
-            if (!window.confirm(`Delete "${target?.title || 'this project'}"? This cannot be undone.`)) return
+            if (!window.confirm(`Delete "${target?.title || 'this topic'}"? This cannot be undone.`)) return
             setBusy(true)
             setError(null)
-            const { error: requestError } = await deleteAgentProject(projectId, userId)
+            const { error: requestError } = await deleteAgentProject(projectId)
             if (requestError) {
-                setError(requestError || 'Failed to delete project')
+                setError(requestError || 'Failed to delete topic')
                 setBusy(false)
                 return
             }

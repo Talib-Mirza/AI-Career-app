@@ -4,8 +4,10 @@ Loads environment variables and provides type-safe access.
 """
 
 from typing import List
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -29,8 +31,17 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""
     SUPABASE_ANON_KEY: str = ""
     SUPABASE_SERVICE_ROLE_KEY: str = ""
-    SUPABASE_JWT_SECRET: str = ""  # Found in Supabase Dashboard → Settings → API → JWT Secret
-    
+    # Legacy shared secret for HS256 user access tokens. NOT the anon key or service_role key.
+    # Projects on asymmetric "JWT Signing Keys" may leave this empty if tokens use RS256/ES256 (verified via JWKS).
+    SUPABASE_JWT_SECRET: str = ""
+
+    @field_validator("SUPABASE_URL", "SUPABASE_JWT_SECRET", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: object) -> object:
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
     # LLM API keys (provider is selected in backend/config.yaml)
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"

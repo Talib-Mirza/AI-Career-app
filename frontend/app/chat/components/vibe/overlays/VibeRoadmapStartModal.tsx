@@ -43,7 +43,7 @@ export function VibeRoadmapStartModal({
                             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-400/30 bg-violet-500/10">
                                 <Route className="h-7 w-7 text-violet-300" />
                             </div>
-                            <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">Roadmap ready</p>
+                            <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">Path ready</p>
                             <h2 className="mt-2 text-xl font-semibold tracking-tight text-zinc-100">{roadmapLabel}</h2>
                             <p className="mt-4 text-sm leading-relaxed text-zinc-400">How would you like to begin?</p>
 

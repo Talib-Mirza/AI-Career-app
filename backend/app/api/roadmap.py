@@ -55,8 +55,6 @@ async def generate_roadmap(request: RoadmapGenerateRequest) -> RoadmapGenerateRe
 
     try:
         roadmap_response = await agent.generate(query=query)
-        if roadmap_response.existing:
-            return RoadmapGenerateResponse(roadmap=roadmap_response, existing=True)
 
         domains_filename = _generate_filename(query, "domains")
         _save_roadmap(
@@ -136,7 +134,7 @@ async def delete_cached_roadmaps(
         if not normalized_title:
             if not (query or "").strip():
                 raise HTTPException(status_code=422, detail="Provide either `query`, `career_title`, or `delete_all=true`.")
-            normalized_title = await normalizer.normalize_career(query.strip())
+            normalized_title = await normalizer.normalize_learning_focus(query.strip())
 
         deleted_count = await storage.delete_roadmap(normalized_title)
         return RoadmapCacheDeleteResponse(deleted_count=deleted_count, career_title=normalized_title)

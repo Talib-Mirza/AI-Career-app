@@ -1,7 +1,6 @@
 """Roadmap agent pipeline.
 
-Step 1: Generate 6-12 domains in chronological order (beginner -> super advanced)
-Step 2: Generate exactly 8 subdomains/skills per domain in chronological order
+Generates a new roadmap every time: domains (6–12) then exactly 8 skills per domain, in chronological order.
 """
 
 from __future__ import annotations
@@ -14,13 +13,11 @@ from typing import Any
 from app.core.logging import RoadmapLogger
 from app.models.roadmap import Domain, DomainsResponse, RoadmapResponse, Subdomain
 from services.career_normalizer import CareerNormalizer
-from services.roadmap_retriever import RoadmapRetriever
-from services.roadmap_storage import RoadmapStorage
 from .llm_client import LLMClient
 
 
 DOMAIN_PROMPT = """You are an elite curriculum architect.
-Generate a roadmap domain list for this query:
+Generate a roadmap domain list for this learning goal (may be a career, course, concept, idea, project, or skill — not only a job title):
 {query}
 
 Hard requirements:
@@ -43,7 +40,7 @@ JSON shape:
 """
 
 SUBDOMAIN_PROMPT = """You are an elite curriculum architect.
-Expand this domain roadmap into specific skills.
+Expand this domain roadmap into specific skills for the user's learning goal (career, course, idea, concept, project, or skill area).
 
 Query: {query}
 Domains:
@@ -53,7 +50,7 @@ Hard requirements:
 1. Output valid JSON only.
 2. For EACH domain, generate EXACTLY 8 subdomains/skills.
 3. Skills must be chronological from foundational -> advanced within each domain.
-4. Later domains must include deep advanced skills within the specific career path.
+4. Later domains must include deep advanced skills along this specific learning path.
 5. Keep each subdomain specific and actionable.
 6. Every subdomain must include: id, title, description, order.
 7. IDs must be lowercase-hyphenated.
@@ -162,8 +159,6 @@ class RoadmapAgent:
     def __init__(self) -> None:
         self.llm = LLMClient()
         self.normalizer = CareerNormalizer()
-        self.retriever = RoadmapRetriever()
-        self.storage = RoadmapStorage()
 
     async def _try_json(self, prompt: str, max_tokens: int) -> AttemptResult:
         try:
@@ -175,29 +170,14 @@ class RoadmapAgent:
 
     async def generate(self, query: str) -> RoadmapResponse:
         normalized_title = ""
-        retrieval: dict[str, Any] | None = None
 
         RoadmapLogger.info(event="roadmap_pipeline_start", query=query)
         try:
-            normalized_title = await self.normalizer.normalize_career(query)
-            RoadmapLogger.info(event="career_normalized", query=query, normalized_title=normalized_title)
-            retrieval = await self.retriever.retrieve_or_new(normalized_title=normalized_title)
-            RoadmapLogger.info(
-                event="roadmap_retrieval_result",
-                normalized_title=normalized_title,
-                status=retrieval.get("status"),
-                distance=retrieval.get("distance"),
-            )
+            normalized_title = await self.normalizer.normalize_learning_focus(query)
+            RoadmapLogger.info(event="learning_focus_normalized", query=query, normalized_title=normalized_title)
         except Exception as exc:  # noqa: BLE001
-            RoadmapLogger.error(event="roadmap_retrieval_error", query=query, error=str(exc))
-            retrieval = {"status": "new", "normalized_title": normalized_title}
-
-        if retrieval.get("status") == "exists":
-            stored = retrieval.get("roadmap") or {}
-            response = self._to_response(stored, fallback_query=query)
-            response.normalized_title = normalized_title or (retrieval.get("normalized_title") if retrieval else None)
-            response.existing = True
-            return response
+            RoadmapLogger.error(event="learning_focus_normalize_error", query=query, error=str(exc))
+            normalized_title = ""
 
         domains_data: dict[str, Any] | None = None
         domains_issues: list[str] = []
@@ -268,23 +248,6 @@ class RoadmapAgent:
         response = self._to_response(final_data, fallback_query=query)
         response.normalized_title = normalized_title or None
         response.existing = False
-
-        try:
-            title_to_store = normalized_title or query
-            embedding = retrieval.get("embedding") if retrieval else None
-            if embedding is None and title_to_store:
-                from utils.embeddings import generate_embedding  # local import to avoid circular import
-
-                embedding = await generate_embedding(title_to_store)
-            if embedding is not None:
-                await self.storage.insert_roadmap(
-                    career_title=title_to_store,
-                    embedding=embedding,
-                    roadmap_json=response.model_dump(),
-                )
-                RoadmapLogger.info(event="roadmap_stored", career_title=title_to_store)
-        except Exception as exc:  # noqa: BLE001
-            RoadmapLogger.error(event="roadmap_store_error", error=str(exc))
 
         return response
 

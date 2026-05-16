@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.models.agent import AgentSessionResponse, AgentTurnRequest, QuizOutcomeFeedback
+from agents.conversation_memory import max_stored_history_messages, trim_stored_history
 from agents.runtime.types import AgentContext
 
 
@@ -12,6 +13,24 @@ READY_FOR_QUIZ_RESPONSES = {"ready", "yes", "y", "quiz", "start quiz", "lets do 
 
 
 class ConversationFlowMixin:
+    def _append_conversation_turn(self, state: dict[str, Any], role: str, content: str) -> None:
+        text = (content or "").strip()
+        if not text or role not in ("user", "assistant"):
+            return
+        conv = state.setdefault("conversation_state", {})
+        hist = conv.setdefault("history", [])
+        hist.append({"role": role, "content": text})
+        trim_stored_history(hist, max_stored_history_messages())
+
+    def _merge_without_transcript_override(self, base: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+        """Deep-merge patch but ignore model-supplied conversation_state.history."""
+        cleaned: dict[str, Any] = dict(patch or {})
+        cs = cleaned.get("conversation_state")
+        if isinstance(cs, dict) and "history" in cs:
+            cleaned = dict(cleaned)
+            cleaned["conversation_state"] = {k: v for k, v in cs.items() if k != "history"}
+        return self._merge_state(base, cleaned)
+
     def _current_topic(self, state: dict[str, Any]) -> dict[str, Any]:
         lesson_plan = state.get("lesson_plan") or []
         if not lesson_plan:
@@ -208,7 +227,9 @@ class ConversationFlowMixin:
             metadata={"stage": "conversation_followup"},
         )
         decision = await self.conversation_agent.respond(context)
-        updated_state = self._merge_state(state, decision.state_patch)
+        updated_state = self._merge_without_transcript_override(state, decision.state_patch)
+        self._append_conversation_turn(updated_state, "user", message)
+        self._append_conversation_turn(updated_state, "assistant", decision.message or "")
         self._set_conversation_phase(updated_state, phase="followup", topic_id=topic.get("id"), awaiting_quiz_consent=True)
         updated = await self.store.update_session(
             session["id"],
@@ -520,15 +541,18 @@ class ConversationFlowMixin:
         state = session["state"]
         topic = self._current_topic(state)
         self._set_conversation_phase(state, phase="lecture", topic_id=topic.get("id"), awaiting_quiz_consent=False)
+        user_message = f"Teach the topic '{topic['title']}' with practical examples and useful web resources."
         context = AgentContext(
             session_id=session["id"],
             user_id=str(session["user_id"]),
-            user_message=f"Teach the topic '{topic['title']}' with practical examples and useful web resources.",
+            user_message=user_message,
             state=self._conversation_context_state(state, mode="teach_topic", target_topic=topic),
             metadata={"stage": "topic_delivery"},
         )
         decision = await self.conversation_agent.respond(context)
-        updated_state = self._merge_state(state, decision.state_patch)
+        updated_state = self._merge_without_transcript_override(state, decision.state_patch)
+        self._append_conversation_turn(updated_state, "user", user_message)
+        self._append_conversation_turn(updated_state, "assistant", decision.message or "")
         self._set_conversation_phase(updated_state, phase="followup", topic_id=topic.get("id"), awaiting_quiz_consent=True)
         updated = await self.store.update_session(
             session["id"],

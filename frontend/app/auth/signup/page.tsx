@@ -10,9 +10,9 @@ export default function SignupPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
 
-  // Redirect if already authenticated
+  // Redirect only fully registered users (not anonymous guests)
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && !user.is_anonymous) {
       router.push("/");
     }
   }, [user, loading, router]);
@@ -27,7 +27,7 @@ export default function SignupPage() {
   }
 
   // Don't render form if authenticated (will redirect)
-  if (user) {
+  if (user && !user.is_anonymous) {
     return null;
   }
 

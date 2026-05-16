@@ -40,7 +40,7 @@ class AgentQuestion(BaseModel):
     concept_id: str | None = None
     correct_option_index: int | None = None
     question_type: Literal["multiple_choice"] = "multiple_choice"
-    kind: Literal["profile", "knowledge_probe", "placement_probe", "placement_confirm", "topic_quiz", "skill_quiz", "domain_quiz"] = "profile"
+    kind: Literal["profile", "knowledge_probe", "placement_probe", "placement_confirm", "topic_quiz", "skill_quiz", "domain_quiz"] = "knowledge_probe"
     options: list[AgentAnswerOption] = Field(default_factory=list)
     attempt_number: int = 1
     difficulty: Literal["easy", "medium", "hard"] | None = None
@@ -49,13 +49,11 @@ class AgentQuestion(BaseModel):
 
 
 class AgentSessionCreateRequest(BaseModel):
-    user_id: str = Field(..., min_length=1)
     query: str = Field(..., min_length=1)
     learning_style: Literal["text", "video", "both"] | None = None
 
 
-class AgentTurnRequest(BaseModel):
-    user_id: str = Field(..., min_length=1)
+class AgentTurnBody(BaseModel):
     message: str | None = None
     input_mode: Literal[
         "text",
@@ -72,7 +70,7 @@ class AgentTurnRequest(BaseModel):
     selected_option_index: int | None = None
 
     @model_validator(mode="after")
-    def validate_payload(self) -> "AgentTurnRequest":
+    def validate_payload(self) -> "AgentTurnBody":
         if self.input_mode == "multiple_choice":
             if self.question_id is None:
                 raise ValueError("question_id is required for multiple-choice turns")
@@ -97,6 +95,10 @@ class AgentTurnRequest(BaseModel):
         if not (self.message or "").strip():
             raise ValueError("message is required for text turns")
         return self
+
+
+class AgentTurnRequest(AgentTurnBody):
+    user_id: str = Field(..., min_length=1)
 
 
 class AgentSessionResponse(BaseModel):

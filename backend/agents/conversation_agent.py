@@ -6,6 +6,11 @@ import re
 from typing import Any
 
 from agents.base import BaseAgent
+from agents.conversation_memory import (
+    history_token_budget,
+    slice_sliding_window,
+    state_without_conversation_history,
+)
 from agents.runtime.types import AgentContext, AgentDecision, ToolDefinition
 from services.web_search import WebSearchService
 
@@ -20,6 +25,7 @@ Primary teaching goal:
 - When you use jargon, acronyms, or field-specific terms the learner may not know yet, **briefly define or paraphrase them the first time** (a short clause or one sentence is enough). Prefer teaching the idea over sounding technical.
 
 Rules:
+- Prior user and assistant messages in this chat (when present) are earlier turns in the thread; use them for continuity and avoid repeating full lectures unless the learner asks.
 - Respect the current conversation phase in `state.conversation_state.phase`.
 - During `teach_topic`, give a practical mini-lecture for exactly one topic and end by asking whether the learner is ready to move on to the quiz.
 - Do not trigger or request the quiz yourself at the end of the lecture.
@@ -75,6 +81,25 @@ class ConversationAgent(BaseAgent):
 
     async def respond(self, context: AgentContext) -> AgentDecision:
         return await self.run(context)
+
+    def _build_messages(self, *, context: AgentContext, scratchpad: list[dict[str, Any]]) -> list[dict[str, str]]:
+        system_prompt = self._compose_system_prompt()
+        state_for_prompt = state_without_conversation_history(context.state)
+        user_blob = self._compose_user_prompt(state=state_for_prompt, context=context, scratchpad=scratchpad)
+
+        hist = (context.state.get("conversation_state") or {}).get("history") or []
+        budget = history_token_budget(self.llm.model)
+        window = slice_sliding_window(hist, budget)
+
+        messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
+        for turn in window:
+            role = str(turn.get("role") or "")
+            content = str(turn.get("content") or "").strip()
+            if role not in ("user", "assistant") or not content:
+                continue
+            messages.append({"role": role, "content": content})
+        messages.append({"role": "user", "content": user_blob})
+        return messages
 
     async def _search_web(self, payload: dict[str, Any]) -> dict[str, Any]:
         query = str(payload.get("query", "")).strip()

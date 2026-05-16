@@ -38,10 +38,16 @@ class RoadmapResponse(BaseModel):
     """Response from Agent 2 - Final Roadmap with Subdomains"""
     query: str = Field(..., description="Original user query")
     domains: List[Domain] = Field(..., description="List of domains with subdomains")
-    normalized_title: Optional[str] = Field(default=None, description="Normalized roadmap title selected by the classifier")
+    normalized_title: Optional[str] = Field(
+        default=None,
+        description="Snake_case label from the learning-focus normalizer (career, course, concept, idea, etc.)",
+    )
     timestamp: Optional[str] = Field(default=None, description="Timestamp of generation")
     filename: Optional[str] = Field(default=None, description="Filename of saved roadmap")
-    existing: Optional[bool] = Field(default=False, description="Whether roadmap was reused from storage")
+    existing: Optional[bool] = Field(
+        default=False,
+        description="Legacy field; always false (roadmaps are no longer deduplicated via the library)",
+    )
 
 
 class RoadmapListResponse(BaseModel):
@@ -50,9 +56,12 @@ class RoadmapListResponse(BaseModel):
 
 
 class RoadmapGenerateResponse(BaseModel):
-    """Response for generate endpoint with reuse metadata"""
+    """Response for generate endpoint (always a freshly generated roadmap)."""
     roadmap: RoadmapResponse = Field(..., description="Generated or reused roadmap payload")
-    existing: bool = Field(default=False, description="Whether roadmap was reused from storage")
+    existing: bool = Field(
+        default=False,
+        description="Legacy field; always false (each generation is fresh)",
+    )
 
 
 class RoadmapCacheDeleteResponse(BaseModel):

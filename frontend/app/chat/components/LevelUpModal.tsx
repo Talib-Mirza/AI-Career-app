@@ -171,7 +171,7 @@ export function LevelUpModal({ level, onClose }: LevelUpModalProps) {
             </button>
             <button
               onClick={() => {
-                const text = `🎉 Just reached Level ${level} — ${title} — on Career AI! 🚀`
+                const text = `🎉 Just reached Level ${level} — ${title} — on Learn Anything! 🚀`
                 if (navigator.share) {
                   void navigator.share({ text })
                 } else {

@@ -84,12 +84,12 @@ const learningStyleOptions: {
 ];
 
 const quickActions = [
-  { icon: <Brain className="w-4 h-4" />, label: "AI Engineer" },
-  { icon: <Target className="w-4 h-4" />, label: "Data Scientist" },
-  { icon: <Rocket className="w-4 h-4" />, label: "Full-Stack Dev" },
-  { icon: <BookOpen className="w-4 h-4" />, label: "UX Designer" },
-  { icon: <Layers className="w-4 h-4" />, label: "Product Manager" },
-  { icon: <Sparkles className="w-4 h-4" />, label: "ML Researcher" },
+  { icon: <Brain className="w-4 h-4" />, label: "Spanish basics" },
+  { icon: <Target className="w-4 h-4" />, label: "Calculus I" },
+  { icon: <Rocket className="w-4 h-4" />, label: "Python programming" },
+  { icon: <BookOpen className="w-4 h-4" />, label: "World history" },
+  { icon: <Layers className="w-4 h-4" />, label: "Music theory" },
+  { icon: <Sparkles className="w-4 h-4" />, label: "Creative writing" },
 ];
 
 interface RuixenMoonChatProps {
@@ -166,17 +166,17 @@ export default function RuixenMoonChat({ onStart, isNavigating = false }: Ruixen
               >
                 <Sparkles className="w-3.5 h-3.5 text-blue-400" />
                 <span className="text-xs font-semibold uppercase tracking-widest text-blue-300">
-                  Next-Gen Career AI
+                  Learn anything, your way
                 </span>
               </motion.div>
               <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-white leading-[1.05] tracking-tight drop-shadow-2xl">
-                Architect Your <br />
+                Learn <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 animate-gradient bg-[length:200%_auto]">
-                  Future Mastery
+                  anything
                 </span>
               </h1>
               <p className="mt-5 text-lg text-neutral-300 max-w-xl mx-auto leading-relaxed">
-                Personalized roadmaps, AI coaching, and skill assessments — all in one place.
+                Pick any subject—get a guided path, explanations, quizzes, and practice in one workspace.
               </p>
             </motion.div>
           ) : (
@@ -222,7 +222,7 @@ export default function RuixenMoonChat({ onStart, isNavigating = false }: Ruixen
                       adjustHeight();
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Your dream career... (e.g., AI Engineer, UX Designer)"
+                    placeholder="What do you want to learn? (e.g., Spanish, physics, watercolor)"
                     className={cn(
                       "w-full px-5 py-4 resize-none border-none",
                       "bg-transparent text-white text-base",

@@ -96,9 +96,7 @@ export interface AgentRoadmap {
 
 export interface AgentSessionState {
     profile_answers?: Array<Record<string, unknown>>
-    learner_profile?: {
-        reading_level?: string | null
-    }
+    learner_profile?: Record<string, unknown>
     knowledge_state?: {
         skills?: Record<string, unknown>
         learning_frontier?: Record<string, unknown> | null

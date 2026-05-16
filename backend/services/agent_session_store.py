@@ -171,6 +171,32 @@ class AgentSessionStore:
 
         return await asyncio.to_thread(_list)
 
+    async def count_user_message_events(self, user_id: str) -> int:
+        """Count user_message events across all sessions owned by user_id (for guest quotas)."""
+        client = get_supabase_admin_client()
+
+        def _count() -> int:
+            sess_result = client.table(self.sessions_table).select("id").eq("user_id", user_id).execute()
+            ids = [str(r["id"]) for r in (sess_result.data or [])]
+            if not ids:
+                return 0
+            total = 0
+            chunk_size = 100
+            for i in range(0, len(ids), chunk_size):
+                chunk = ids[i : i + chunk_size]
+                result = (
+                    client.table(self.events_table)
+                    .select("id", count="exact")
+                    .eq("role", "user")
+                    .eq("event_type", "user_message")
+                    .in_("session_id", chunk)
+                    .execute()
+                )
+                total += int(result.count or 0)
+            return total
+
+        return await asyncio.to_thread(_count)
+
     async def create_memory(self, payload: dict[str, Any]) -> dict[str, Any]:
         return await self._insert(self.memories_table, payload)
 

@@ -1,9 +1,11 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { PlusCircle, Sparkles, X } from 'lucide-react'
+import { LogOut, PlusCircle, Sparkles, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 import { ProjectSidebar } from '@/app/chat/components/ProjectSidebar'
+import { useAuth } from '@/contexts/auth-context'
 import type { AgentProjectSummary } from '@/types'
 
 interface VibeProjectsDrawerProps {
@@ -31,6 +33,15 @@ export function VibeProjectsDrawer({
     profileLevel,
     profileXp,
 }: VibeProjectsDrawerProps) {
+    const router = useRouter()
+    const { signOut } = useAuth()
+
+    const handleSignOut = async () => {
+        onClose()
+        await signOut()
+        router.push('/')
+    }
+
     return (
         <AnimatePresence>
             {open && (
@@ -47,7 +58,7 @@ export function VibeProjectsDrawer({
                     <motion.aside
                         role="dialog"
                         aria-modal="true"
-                        aria-label="Projects"
+                        aria-label="Topics drawer"
                         className="dark fixed inset-y-0 left-0 z-[70] flex w-[min(100%,20rem)] flex-col overflow-hidden border-r border-neutral-800 bg-neutral-900 shadow-2xl shadow-black/40"
                         initial={{ x: '-100%' }}
                         animate={{ x: 0 }}
@@ -68,8 +79,8 @@ export function VibeProjectsDrawer({
                                     <Sparkles className="h-3.5 w-3.5 text-white" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-500">Workspace</p>
-                                    <p className="text-sm font-semibold text-neutral-50">Projects</p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-500">Your hub</p>
+                                    <p className="text-sm font-semibold text-neutral-50">Topics</p>
                                 </div>
                             </div>
                             <button
@@ -96,10 +107,10 @@ export function VibeProjectsDrawer({
                                 className="flex w-full items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-blue-500 hover:to-purple-500 disabled:opacity-50"
                             >
                                 <PlusCircle className="h-4 w-4" />
-                                New project
+                                New topic
                             </button>
                         </div>
-                        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
+                        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
                             <ProjectSidebar
                                 projects={projects}
                                 selectedProjectId={selectedProjectId}
@@ -109,6 +120,17 @@ export function VibeProjectsDrawer({
                                 onStartNew={onStartNew}
                                 compact
                             />
+                        </div>
+                        <div className="relative mt-auto shrink-0 border-t border-neutral-800 px-3 py-3">
+                            <button
+                                type="button"
+                                onClick={() => void handleSignOut()}
+                                disabled={busy}
+                                className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-700 bg-neutral-900/80 px-3 py-2.5 text-sm font-medium text-neutral-300 transition hover:border-neutral-600 hover:bg-neutral-800 hover:text-neutral-100 disabled:opacity-50"
+                            >
+                                <LogOut className="h-4 w-4" />
+                                Sign out
+                            </button>
                         </div>
                     </motion.aside>
                 </>

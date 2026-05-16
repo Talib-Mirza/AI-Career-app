@@ -15,7 +15,7 @@ The central coordinator is `LearningOrchestrator`, composed from mixins in `back
 
 ## Main Agents And Responsibilities
 
-- `RoadmapAgent`: Generates or reuses a roadmap for the user's goal.
+- `RoadmapAgent`: Generates a fresh roadmap for the user's learning goal.
 - `KnowledgeAgent`: Plans the next probe concept and difficulty for the skill selected by the BKT layer.
 - `QuizAgent`: Turns the planned probe, topic, or domain into a four-option multiple-choice question.
 - `ConversationAgent`: Teaches topics, handles follow-up questions, and hands off to quizzes.
@@ -41,20 +41,20 @@ When the user starts a new project from the chat page:
    - global user skill priors in `user_skill_knowledge`
    - project-local overlays in `project_skill_knowledge`
 7. The orchestrator seeds the runtime state with:
-   - learner profile state
+   - optional `profile_answers` / `learner_profile` for future use
    - placement state
    - conversation state
    - roadmap progress
    - quiz pointers
 
-If the user already has a saved `reading_level` in `profiles`, the system skips the profile question and starts placement immediately. Otherwise, it returns a profile multiple-choice question first.
+After the learner chooses **beginning** or **placement**, the orchestrator enters guided mode or starts placement probes without a separate profile quiz.
 
 ## The Runtime State Model
 
 The session `state` is now a working cache for orchestration and UI. Durable knowledge state lives in Supabase tables. Important branches:
 
-- `learner_profile`: Stores `reading_level`
-- `profile_answers`: Stores onboarding answers
+- `learner_profile`: Reserved for future structured learner prefs (empty at init)
+- `profile_answers`: Reserved for future onboarding answers (empty at init)
 - `knowledge_state`: Tracks current probe, current frontier summary, skill probability summaries, and per-skill local history
 - `placement_state`: Tracks BKT-driven placement progress, question budget, selection metadata, and placement history
 - `conversation_state`: Tracks whether the system is teaching, waiting for follow-up, or waiting for quiz consent
@@ -121,7 +121,6 @@ This lets the frontend reopen a project and reconstruct:
 
 The most important session statuses are:
 
-- `awaiting_profile`
 - `awaiting_knowledge_answer`
 - `reviewing_topic`
 - `awaiting_topic_followup`

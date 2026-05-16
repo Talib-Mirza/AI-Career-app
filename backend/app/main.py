@@ -24,6 +24,11 @@ async def lifespan(app: FastAPI):
     # Startup logic
     print(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     print(f"API docs available at: /docs")
+    if settings.SUPABASE_JWT_SECRET and settings.SUPABASE_JWT_SECRET.startswith("eyJ"):
+        print(
+            "⚠️  SUPABASE_JWT_SECRET looks like a JWT (often the anon/service key). "
+            "Use the JWT Secret from Supabase Dashboard → Project Settings → API → JWT instead."
+        )
     
     yield  # App runs here
     

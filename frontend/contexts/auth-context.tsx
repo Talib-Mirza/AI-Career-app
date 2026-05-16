@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { type User, type Session } from '@supabase/supabase-js'
 
@@ -11,8 +11,10 @@ type AuthContextType = {
     user: User | null
     session: Session | null
     loading: boolean
+    isAnonymous: boolean
     isDevUser: boolean
     devAuthEnabled: boolean
+    ensureAnonymousSession: () => Promise<{ ok: boolean; error?: string }>
     signIn: (email: string, password: string) => Promise<{ success: boolean; error: string | null }>
     signUp: (
         email: string,
@@ -44,7 +46,7 @@ async function ensureProfileRow(user: User) {
         (user.user_metadata?.display_name as string | undefined) ||
         (user.user_metadata?.full_name as string | undefined) ||
         user.email?.split('@')[0] ||
-        'Career Explorer'
+        'Explorer'
 
     const profilePayload = {
         id: user.id,
@@ -149,6 +151,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { success: false, error: 'Supabase auth is not configured.' }
         }
 
+        const {
+            data: { user: existingUser },
+        } = await supabase.auth.getUser()
+
+        if (existingUser?.is_anonymous) {
+            const { data, error } = await supabase.auth.updateUser({ email, password })
+            if (error) {
+                return { success: false, error: error.message }
+            }
+            if (data.user) {
+                await ensureProfileRow(data.user)
+            }
+            return {
+                success: true,
+                error: null,
+                needsEmailVerification: Boolean(data.user && !data.user.email_confirmed_at && email),
+            }
+        }
+
         const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined
         const { data, error } = await supabase.auth.signUp({
             email,
@@ -189,14 +210,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('[auth] development login enabled')
     }
 
+    const ensureAnonymousSession = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+        if (!supabase) {
+            return { ok: false, error: 'Auth is not configured.' }
+        }
+        if (DEV_AUTH_ENABLED && typeof window !== 'undefined' && sessionStorage.getItem(DEV_AUTH_STORAGE_KEY) === 'true') {
+            return { ok: true }
+        }
+        const {
+            data: { session: existing },
+        } = await supabase.auth.getSession()
+        if (existing?.user) {
+            return { ok: true }
+        }
+        const { error } = await supabase.auth.signInAnonymously()
+        if (error) {
+            console.error('[auth] signInAnonymously failed', error)
+            return { ok: false, error: error.message }
+        }
+        return { ok: true }
+    }, [supabase])
+
+    const isAnonymous = Boolean(user?.is_anonymous)
+
     return (
         <AuthContext.Provider
             value={{
                 user,
                 session,
                 loading,
+                isAnonymous,
                 isDevUser,
                 devAuthEnabled: DEV_AUTH_ENABLED,
+                ensureAnonymousSession,
                 signIn,
                 signUp,
                 signOut,

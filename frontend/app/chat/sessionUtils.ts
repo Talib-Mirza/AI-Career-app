@@ -34,7 +34,7 @@ export function getCurrentTopic(session: AgentSessionResponse | null): Record<st
 
 export function toRoadmapLabel(value: string | null | undefined) {
     const source = (value || '').trim()
-    if (!source) return 'Untitled Roadmap'
+    if (!source) return 'Untitled path'
     return source
         .replace(/[_-]+/g, ' ')
         .split(' ')
@@ -64,7 +64,7 @@ export function shouldAppendAssistantTimelineMessage(response: AgentSessionRespo
 }
 
 export function chat2InputPlaceholder(session: AgentSessionResponse | null, hasPendingQuiz: boolean) {
-    if (!session) return 'Describe your career goal…'
+    if (!session) return 'What do you want to explore or learn?…'
     if (hasPendingQuiz) return 'Answer the quiz in the modal first…'
     if (session.status === 'awaiting_start_mode') return 'Choose how to begin in the dialog…'
     if (session.status === 'awaiting_topic_followup') return 'Ask a follow-up, or use Start quiz below…'

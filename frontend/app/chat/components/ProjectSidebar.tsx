@@ -36,7 +36,7 @@ export function ProjectSidebar({ projects, selectedProjectId, busy, onSelect, on
             <aside className="rounded-[2rem] glass-premium dark:glass-premium-dark border border-white/30 dark:border-white/10 shadow-xl">
                 <div className="max-h-[calc(100vh-260px)] space-y-2 overflow-y-auto p-4">
                     {projects.length === 0 ? (
-                        <p className="text-sm text-neutral-500 dark:text-neutral-400 p-2">No projects yet.</p>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400 p-2">No topics yet.</p>
                     ) : projects.map(project => (
                         <ProjectRow key={project.id} project={project} isSelected={selectedProjectId === project.id} busy={busy} onSelect={onSelect} onDelete={onDelete} />
                     ))}
@@ -50,7 +50,7 @@ export function ProjectSidebar({ projects, selectedProjectId, busy, onSelect, on
         return (
             <div className="px-2 py-4 text-center">
                 <MessageSquare className="w-6 h-6 text-neutral-300 dark:text-neutral-600 mx-auto mb-2" />
-                <p className="text-xs text-neutral-400 dark:text-neutral-500">No projects yet.<br />Start one above.</p>
+                <p className="text-xs text-neutral-400 dark:text-neutral-500">No topics yet.<br />Start one above.</p>
             </div>
         )
     }

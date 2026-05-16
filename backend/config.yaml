@@ -7,3 +7,10 @@ llm:
     openai: gpt-5-mini
     google: gemini-1.5-flash
     openrouter: openai/gpt-4o-mini
+  # Sliding transcript for conversation_agent (budget scales with model context in conversation_memory.py)
+  conversation_history:
+    fraction_of_context: 0.08
+    reserved_tokens: 14000
+    min_history_tokens: 1600
+    max_history_tokens: 24000
+    max_stored_messages: 200

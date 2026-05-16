@@ -4,16 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.models.agent import AgentAnswerOption, AgentQuestion
 from app.models.roadmap import RoadmapResponse
-
-
-READING_LEVEL_OPTIONS = [
-    AgentAnswerOption(id="A", label="<5th Grade"),
-    AgentAnswerOption(id="B", label="6-8th grade"),
-    AgentAnswerOption(id="C", label="high school"),
-    AgentAnswerOption(id="D", label="university"),
-]
 
 
 class CoreStateMixin:
@@ -22,8 +13,8 @@ class CoreStateMixin:
             "learning_style": learning_style or "text",
             "learning_path_mode": None,
             "profile_answers": [],
-            "learner_profile": {"reading_level": None},
-            "onboarding": {"current_index": 0, "completed": False},
+            "learner_profile": {},
+            "onboarding": {"current_index": 0, "completed": True},
             "knowledge_state": {
                 "skill_probabilities_summary": [],
                 "learning_frontier": None,
@@ -202,15 +193,6 @@ class CoreStateMixin:
             "recent_history": history[-4:],
             "skill_probability_summary": skill_summary[-8:],
         }
-
-    def _reading_level_question(self) -> AgentQuestion:
-        return AgentQuestion(
-            id="reading_level",
-            prompt="What is your reading level?",
-            kind="profile",
-            options=READING_LEVEL_OPTIONS,
-            attempt_number=1,
-        )
 
     def _set_progress_from_skill(self, state: dict[str, Any], skill: dict[str, Any], roadmap_json: dict[str, Any]) -> None:
         for item in self._ordered_skills(roadmap_json):

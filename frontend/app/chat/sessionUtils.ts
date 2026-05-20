@@ -76,6 +76,7 @@ export function chat2InputPlaceholder(session: AgentSessionResponse | null, hasP
 export function eventToTimelineMessage(event: AgentEvent): Chat2TimelineMessage | null {
     const responseStatus = typeof event.payload?.status === 'string' ? event.payload.status : null
     if (event.role === 'assistant' && isInitialCalibrationStatus(responseStatus)) return null
+    if (event.event_type === 'session_created') return null
     if (event.event_type === 'initial_query') return null
     if (event.role === 'user' && event.payload?.input_mode === 'start_mode') return null
     if (event.role === 'user' && event.payload?.input_mode === 'multiple_choice') return null

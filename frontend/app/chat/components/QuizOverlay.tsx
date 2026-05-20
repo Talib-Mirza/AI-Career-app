@@ -5,7 +5,6 @@ import { CheckCircle2, Loader2, X } from 'lucide-react'
 
 import type { AgentQuestion, QuizOutcomeFeedback } from '@/types'
 import { MarkdownRenderer } from './MarkdownRenderer'
-import { QuizDevAnswerBanner, QuizDevOptionMarker, resolvedCorrectOptionIndex } from './QuizDevHints'
 
 interface QuizOverlayProps {
     question: AgentQuestion
@@ -46,8 +45,6 @@ export function QuizOverlay({
     const showOutcome = Boolean(outcomeFeedback)
     const isDisabled = busy || submitting || nextReady || showOutcome
     const canSubmit = selectedIndex !== null && selectedIndex !== undefined && !submitting && !nextReady && !showOutcome
-    const correctOptionIndex = resolvedCorrectOptionIndex(question)
-
     function optionClassName(index: number) {
         if (selectedIndex === index) {
             return 'border-[color:var(--accent-2)] bg-[color:var(--surface-2)] text-[color:var(--ink)]'
@@ -117,7 +114,6 @@ export function QuizOverlay({
                                     <div className="text-[color:var(--ink)]">
                                         <MarkdownRenderer content={question.prompt} variant="compact" size="lg" />
                                     </div>
-                                    <QuizDevAnswerBanner question={question} />
                                     <div className="space-y-3">
                                         {question.options.map((option, index) => (
                                             <button
@@ -135,7 +131,6 @@ export function QuizOverlay({
                                                         <MarkdownRenderer content={option.label} variant="compact" size="sm" />
                                                     </span>
                                                     <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                                                        <QuizDevOptionMarker show={correctOptionIndex === index} />
                                                         {selectedIndex === index ? (
                                                             <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[color:var(--accent-2)] bg-[color:var(--accent-2)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--ink)]">
                                                                 <CheckCircle2 className="h-3.5 w-3.5" />

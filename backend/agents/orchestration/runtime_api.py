@@ -220,7 +220,7 @@ class RuntimeApiMixin:
             return await self._start_guided_skill(
                 session=session,
                 state=state,
-                intro="Starting from the beginning of your roadmap.",
+                intro=None,
             )
 
         return await self._start_placement_flow(

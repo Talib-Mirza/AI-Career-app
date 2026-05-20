@@ -224,7 +224,6 @@ class QuizRuntimeMixin:
             skill_id=quiz.get("skill_id"),
             domain_id=quiz.get("domain_id"),
             concept_id=quiz.get("concept_id"),
-            correct_option_index=quiz.get("correct_option_index"),
             kind=quiz["question_kind"],
             options=[AgentAnswerOption(**option) for option in list(quiz.get("options") or [])],
             attempt_number=int(quiz.get("attempt_number") or 1),

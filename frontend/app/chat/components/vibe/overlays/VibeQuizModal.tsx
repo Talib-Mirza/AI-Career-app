@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, Loader2, X } from 'lucide-react'
 
 import { MarkdownRenderer } from '@/app/chat/components/MarkdownRenderer'
-import { QuizDevAnswerBanner, QuizDevOptionMarker, resolvedCorrectOptionIndex } from '@/app/chat/components/QuizDevHints'
 import type { AgentQuestion, QuizOutcomeFeedback } from '@/types'
 
 interface VibeQuizModalProps {
@@ -46,8 +45,6 @@ export function VibeQuizModal({
     const showOutcome = Boolean(outcomeFeedback)
     const isDisabled = busy || submitting || nextReady || showOutcome
     const canSubmit = selectedIndex !== null && selectedIndex !== undefined && !submitting && !nextReady && !showOutcome
-    const correctOptionIndex = resolvedCorrectOptionIndex(question)
-
     return (
         <AnimatePresence>
             <motion.div
@@ -108,7 +105,6 @@ export function VibeQuizModal({
                                     <div className="text-zinc-100">
                                         <MarkdownRenderer content={question.prompt} variant="compact" size="lg" />
                                     </div>
-                                    <QuizDevAnswerBanner question={question} tone="embedded" />
                                     <div className="space-y-2.5">
                                         {question.options.map((option, index) => (
                                             <button
@@ -130,7 +126,6 @@ export function VibeQuizModal({
                                                         <MarkdownRenderer content={option.label} variant="compact" size="sm" />
                                                     </span>
                                                     <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                                                        <QuizDevOptionMarker show={correctOptionIndex === index} tone="embedded" />
                                                         {selectedIndex === index ? (
                                                             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-teal-500/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-200">
                                                                 <CheckCircle2 className="h-3 w-3" />

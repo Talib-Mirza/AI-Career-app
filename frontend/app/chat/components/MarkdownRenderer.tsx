@@ -142,7 +142,7 @@ export function MarkdownRenderer({ content, variant = 'default', size = 'md' }: 
     if (!content) return null
     const compact = variant === 'compact'
     const baseText = size === 'lg' ? 'text-lg' : size === 'sm' ? 'text-sm' : 'text-[15px]'
-    const compactText = size === 'lg' ? 'text-base' : size === 'sm' ? 'text-[13px]' : 'text-sm'
+    const compactText = size === 'lg' ? 'text-base' : size === 'sm' ? 'text-[15px]' : 'text-sm'
     const paragraphText = compact ? compactText : baseText
     const processedContent = preprocessLaTeX(content)
 
@@ -238,7 +238,7 @@ export function MarkdownRenderer({ content, variant = 'default', size = 'md' }: 
                         className="mt-4 w-full rounded-2xl border border-[color:var(--line)] object-cover"
                     />
                 ),
-                strong: ({ children }) => <strong className="font-semibold text-[color:var(--ink)]">{children}</strong>,
+                strong: ({ children }) => <strong className="font-bold text-[color:var(--ink)]">{children}</strong>,
                 em: ({ children }) => <em className="text-[color:var(--ink-soft)]">{children}</em>,
                 code: ({ className, children, node }) => {
                     const raw = String(children ?? '').replace(/\n$/, '')

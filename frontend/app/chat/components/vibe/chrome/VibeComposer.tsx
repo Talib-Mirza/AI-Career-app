@@ -21,7 +21,7 @@ export function VibeComposer({ value, onChange, onSubmit, placeholder, disabled,
                     placeholder={placeholder}
                     disabled={disabled || busy}
                     rows={1}
-                    className="max-h-32 min-h-[44px] min-w-0 flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus:outline-none disabled:opacity-50"
+                    className="max-h-32 min-h-[44px] min-w-0 flex-1 resize-none bg-transparent py-2.5 text-[17px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus:outline-none disabled:opacity-50"
                     onKeyDown={e => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault()

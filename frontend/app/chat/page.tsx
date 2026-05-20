@@ -134,7 +134,7 @@ export default function ChatPage() {
             <VibeRoadmapLoading visible={s.isRoadmapLoading} query={s.roadmapCreationQuery} />
 
             <div className="relative z-10 flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-x-hidden px-4 py-3 sm:py-4">
-                <FloatingConversationCard className="h-[min(100%,calc(100dvh-7rem))] max-h-[min(calc(100dvh-7rem),52rem)] min-h-[12rem] w-full max-w-[42rem]">
+                <FloatingConversationCard className="h-[min(100%,calc(100dvh-7rem))] max-h-[min(calc(100dvh-7rem),52rem)] min-h-[12rem] w-[min(96vw,60rem)] sm:w-[min(94vw,64rem)]">
                     <AnimatePresence mode="wait">
                         {s.dungeonPhase === 'hidden' ? (
                             <motion.div
@@ -145,6 +145,16 @@ export default function ChatPage() {
                                 exit={{ opacity: 0, filter: 'blur(8px)' }}
                                 transition={{ duration: 0.3 }}
                             >
+                                <div className="shrink-0 border-b border-white/[0.06] px-5 pb-3 pt-4">
+                                    <h2 className="text-center text-3xl font-semibold tracking-tight text-zinc-50 sm:text-[2.1rem]">
+                                        {String(
+                                            s.currentTopic?.title ||
+                                                s.currentSkill?.title ||
+                                                s.currentDomain?.title ||
+                                                'Lecture'
+                                        )}
+                                    </h2>
+                                </div>
                                 <VibeMessageThread
                                     messages={s.messages}
                                     busy={s.busy}

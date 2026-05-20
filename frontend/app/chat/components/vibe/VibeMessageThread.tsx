@@ -69,8 +69,12 @@ export function VibeMessageThread({
                                         : 'bg-transparent text-zinc-100'
                                 }`}
                             >
-                                <div className="vibe-md min-w-0 max-w-full break-words text-[15px] leading-relaxed [overflow-wrap:anywhere] [&_img]:max-w-full [&_img]:h-auto [&_pre]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto">
-                                    <MarkdownRenderer content={message.content} variant="compact" size="sm" />
+                                <div className="vibe-md min-w-0 max-w-full break-words text-[17px] leading-relaxed [overflow-wrap:anywhere] [&_img]:max-w-full [&_img]:h-auto [&_pre]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto">
+                                    <MarkdownRenderer
+                                        content={message.content}
+                                        variant={message.role === 'assistant' ? 'default' : 'compact'}
+                                        size={message.role === 'assistant' ? 'md' : 'sm'}
+                                    />
                                 </div>
                             </div>
                         </motion.div>
@@ -102,7 +106,7 @@ export function VibeMessageThread({
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-6 min-w-0 max-w-full border-t border-white/[0.06] pt-5"
                 >
-                    <p className="mb-3 break-words text-sm text-zinc-500">
+                    <p className="mb-3 break-words text-base text-zinc-500">
                         {showDungeonButton
                             ? 'Ready to check what you learned? Try an immersive scene, or start the quiz—your thread stays above.'
                             : 'When you are ready, start the quiz—your thread stays above.'}
@@ -113,7 +117,7 @@ export function VibeMessageThread({
                                 type="button"
                                 onClick={onDungeon}
                                 disabled={busy}
-                                className="inline-flex items-center gap-2 rounded-xl border border-violet-400/35 bg-violet-950/50 px-4 py-2.5 text-sm font-semibold text-violet-100 shadow-md transition hover:bg-violet-900/40 disabled:opacity-40"
+                                className="inline-flex items-center gap-2 rounded-xl border border-violet-400/35 bg-violet-950/50 px-4 py-2.5 text-base font-semibold text-violet-100 shadow-md transition hover:bg-violet-900/40 disabled:opacity-40"
                             >
                                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
                                 Dungeon
@@ -124,7 +128,7 @@ export function VibeMessageThread({
                                 type="button"
                                 onClick={onQuizReady}
                                 disabled={busy}
-                                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-95 disabled:opacity-40"
+                                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 px-4 py-2.5 text-base font-semibold text-white shadow-lg transition hover:opacity-95 disabled:opacity-40"
                             >
                                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
                                 {quizReadyButtonLabel}

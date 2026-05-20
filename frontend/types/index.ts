@@ -40,7 +40,6 @@ export interface AgentQuestion {
     skill_id?: string | null
     domain_id?: string | null
     concept_id?: string | null
-    correct_option_index?: number | null
     question_type: 'multiple_choice'
     kind: 'profile' | 'knowledge_probe' | 'placement_probe' | 'placement_confirm' | 'topic_quiz' | 'skill_quiz' | 'domain_quiz'
     options: AgentAnswerOption[]

@@ -54,7 +54,7 @@ class BaseAgent:
 
             action = str(response.get("action", "final")).strip()
             action_input = response.get("action_input") or {}
-            message = str(response.get("message", "")).strip()
+            message = self._extract_response_message(response)
             state_patch = response.get("state_patch") or {}
             metadata = response.get("metadata") or {}
 
@@ -102,6 +102,26 @@ class BaseAgent:
             message=f"{self.name} exceeded max ReAct steps",
             tool_trace=tool_trace,
         )
+
+    def _extract_response_message(self, response: dict[str, Any]) -> str:
+        """
+        Extract user-facing message from model JSON.
+
+        Some model responses occasionally place `message` inside `action_input`
+        (especially on `final` actions). Prefer top-level `message`, but fall
+        back to `action_input.message` to avoid dropping full lecture output.
+        """
+        top_level = response.get("message")
+        if isinstance(top_level, str) and top_level.strip():
+            return top_level.strip()
+
+        action_input = response.get("action_input")
+        if isinstance(action_input, dict):
+            nested = action_input.get("message")
+            if isinstance(nested, str) and nested.strip():
+                return nested.strip()
+
+        return ""
 
     def _tool_block_text(self) -> str:
         return json.dumps(

@@ -38,7 +38,6 @@ class AgentQuestion(BaseModel):
     skill_id: str | None = None
     domain_id: str | None = None
     concept_id: str | None = None
-    correct_option_index: int | None = None
     question_type: Literal["multiple_choice"] = "multiple_choice"
     kind: Literal["profile", "knowledge_probe", "placement_probe", "placement_confirm", "topic_quiz", "skill_quiz", "domain_quiz"] = "knowledge_probe"
     options: list[AgentAnswerOption] = Field(default_factory=list)

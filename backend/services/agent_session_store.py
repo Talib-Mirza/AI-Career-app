@@ -3,10 +3,28 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import datetime, timezone
 from typing import Any
 
 from services.supabase_client import get_supabase_admin_client
+
+# In-process session cache — keyed by session_id, TTL of 60 seconds.
+# Prevents repeated full-state reads within a single user interaction.
+_SESSION_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+_SESSION_CACHE_TTL = 60.0
+
+
+def _cache_get(session_id: str) -> dict[str, Any] | None:
+    entry = _SESSION_CACHE.get(session_id)
+    if entry and (time.monotonic() - entry[0]) < _SESSION_CACHE_TTL:
+        return entry[1]
+    _SESSION_CACHE.pop(session_id, None)
+    return None
+
+
+def _cache_set(session_id: str, row: dict[str, Any]) -> None:
+    _SESSION_CACHE[session_id] = (time.monotonic(), row)
 
 
 class AgentSessionStore:
@@ -102,6 +120,9 @@ class AgentSessionStore:
         return await self._insert(self.sessions_table, payload)
 
     async def get_session(self, session_id: str) -> dict[str, Any]:
+        cached = _cache_get(session_id)
+        if cached is not None:
+            return cached
         client = get_supabase_admin_client()
 
         def _read() -> dict[str, Any]:
@@ -111,7 +132,20 @@ class AgentSessionStore:
                 raise ValueError(f"Session '{session_id}' not found")
             return rows[0]
 
-        return await asyncio.to_thread(_read)
+        row = await asyncio.to_thread(_read)
+        _cache_set(session_id, row)
+        return row
+
+    async def get_sessions_by_ids(self, session_ids: list[str]) -> list[dict[str, Any]]:
+        if not session_ids:
+            return []
+        client = get_supabase_admin_client()
+
+        def _list() -> list[dict[str, Any]]:
+            result = client.table(self.sessions_table).select("id,status").in_("id", session_ids).execute()
+            return result.data or []
+
+        return await asyncio.to_thread(_list)
 
     async def get_latest_session_for_project(self, project_id: str) -> dict[str, Any] | None:
         client = get_supabase_admin_client()
@@ -150,7 +184,9 @@ class AgentSessionStore:
                 raise ValueError(f"Session '{session_id}' could not be updated")
             return rows[0]
 
-        return await asyncio.to_thread(_update)
+        row = await asyncio.to_thread(_update)
+        _cache_set(session_id, row)
+        return row
 
     async def append_event(self, payload: dict[str, Any]) -> dict[str, Any]:
         return await self._insert(self.events_table, payload)
@@ -180,20 +216,15 @@ class AgentSessionStore:
             ids = [str(r["id"]) for r in (sess_result.data or [])]
             if not ids:
                 return 0
-            total = 0
-            chunk_size = 100
-            for i in range(0, len(ids), chunk_size):
-                chunk = ids[i : i + chunk_size]
-                result = (
-                    client.table(self.events_table)
-                    .select("id", count="exact")
-                    .eq("role", "user")
-                    .eq("event_type", "user_message")
-                    .in_("session_id", chunk)
-                    .execute()
-                )
-                total += int(result.count or 0)
-            return total
+            result = (
+                client.table(self.events_table)
+                .select("id", count="exact")
+                .eq("role", "user")
+                .eq("event_type", "user_message")
+                .in_("session_id", ids)
+                .execute()
+            )
+            return int(result.count or 0)
 
         return await asyncio.to_thread(_count)
 

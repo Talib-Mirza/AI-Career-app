@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from typing import Any
 
@@ -25,9 +26,11 @@ class KnowledgeStateStore:
         ordered_skills: list[dict[str, Any]],
     ) -> dict[str, dict[str, Any]]:
         skill_ids = [str(skill["id"]) for skill in ordered_skills]
-        global_rows = await self.session_store.list_user_skill_knowledge(user_id, skill_ids=skill_ids)
+        global_rows, project_rows = await asyncio.gather(
+            self.session_store.list_user_skill_knowledge(user_id, skill_ids=skill_ids),
+            self.session_store.list_project_skill_knowledge(project_id, skill_ids=skill_ids),
+        )
         global_map = {str(row["skill_id"]): row for row in global_rows}
-        project_rows = await self.session_store.list_project_skill_knowledge(project_id, skill_ids=skill_ids)
         project_map = {str(row["skill_id"]): row for row in project_rows}
         global_inserts: list[dict[str, Any]] = []
         for skill in ordered_skills:
@@ -102,9 +105,13 @@ class KnowledgeStateStore:
         project_id: str,
         ordered_skills: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
+        skill_ids = [str(skill["id"]) for skill in ordered_skills]
+        # Seed missing rows, then fetch current state in one parallel read — no double-fetch
         await self.seed_project_skill_states(user_id=user_id, project_id=project_id, ordered_skills=ordered_skills)
-        global_rows = await self.session_store.list_user_skill_knowledge(user_id, skill_ids=[str(skill["id"]) for skill in ordered_skills])
-        project_rows = await self.session_store.list_project_skill_knowledge(project_id, skill_ids=[str(skill["id"]) for skill in ordered_skills])
+        global_rows, project_rows = await asyncio.gather(
+            self.session_store.list_user_skill_knowledge(user_id, skill_ids=skill_ids),
+            self.session_store.list_project_skill_knowledge(project_id, skill_ids=skill_ids),
+        )
         global_map = {str(row["skill_id"]): row for row in global_rows}
         project_map = {str(row["skill_id"]): row for row in project_rows}
         return [self._summary_from_rows(skill, global_map[str(skill["id"])], project_map[str(skill["id"])]) for skill in ordered_skills]

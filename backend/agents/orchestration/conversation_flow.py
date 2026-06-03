@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from app.models.agent import AgentSessionResponse, AgentTurnRequest, QuizOutcomeFeedback
@@ -242,26 +243,29 @@ class ConversationFlowMixin:
         state = session["state"]
         quiz, selected_index = await self._resolve_quiz_submission(session, turn)
         is_correct = selected_index == int(quiz["correct_option_index"])
-        feedback = await self._lesson_quiz_outcome_feedback(
-            session=session,
-            quiz=quiz,
-            selected_index=selected_index,
-            is_correct=is_correct,
-        )
-        bkt_result = (
-            await self.knowledge_store.apply_quiz_observation(
-                user_id=str(session["user_id"]),
-                project_id=str(session["project_id"]),
-                session_id=str(session["id"]),
-                quiz=quiz,
-                attempt_id=None,
-                is_correct=is_correct,
-                selection_reason="topic_quiz_outcome",
-                selection_score=None,
+
+        # Run outcome explanation and BKT update concurrently — neither depends on the other
+        if quiz.get("skill_id"):
+            feedback, bkt_result = await asyncio.gather(
+                self._lesson_quiz_outcome_feedback(
+                    session=session, quiz=quiz, selected_index=selected_index, is_correct=is_correct,
+                ),
+                self.knowledge_store.apply_quiz_observation(
+                    user_id=str(session["user_id"]),
+                    project_id=str(session["project_id"]),
+                    session_id=str(session["id"]),
+                    quiz=quiz,
+                    attempt_id=None,
+                    is_correct=is_correct,
+                    selection_reason="topic_quiz_outcome",
+                    selection_score=None,
+                ),
             )
-            if quiz.get("skill_id")
-            else {}
-        )
+        else:
+            feedback = await self._lesson_quiz_outcome_feedback(
+                session=session, quiz=quiz, selected_index=selected_index, is_correct=is_correct,
+            )
+            bkt_result = {}
         attempt = await self._record_quiz_attempt(
             session,
             quiz,
@@ -374,26 +378,29 @@ class ConversationFlowMixin:
         skill = self._current_skill(state, session["roadmap_json"])
         quiz, selected_index = await self._resolve_quiz_submission(session, turn)
         is_correct = selected_index == int(quiz["correct_option_index"])
-        feedback = await self._lesson_quiz_outcome_feedback(
-            session=session,
-            quiz=quiz,
-            selected_index=selected_index,
-            is_correct=is_correct,
-        )
-        bkt_result = (
-            await self.knowledge_store.apply_quiz_observation(
-                user_id=str(session["user_id"]),
-                project_id=str(session["project_id"]),
-                session_id=str(session["id"]),
-                quiz=quiz,
-                attempt_id=None,
-                is_correct=is_correct,
-                selection_reason="skill_quiz_outcome",
-                selection_score=None,
+
+        # Run outcome explanation and BKT update concurrently — neither depends on the other
+        if quiz.get("skill_id"):
+            feedback, bkt_result = await asyncio.gather(
+                self._lesson_quiz_outcome_feedback(
+                    session=session, quiz=quiz, selected_index=selected_index, is_correct=is_correct,
+                ),
+                self.knowledge_store.apply_quiz_observation(
+                    user_id=str(session["user_id"]),
+                    project_id=str(session["project_id"]),
+                    session_id=str(session["id"]),
+                    quiz=quiz,
+                    attempt_id=None,
+                    is_correct=is_correct,
+                    selection_reason="skill_quiz_outcome",
+                    selection_score=None,
+                ),
             )
-            if quiz.get("skill_id")
-            else {}
-        )
+        else:
+            feedback = await self._lesson_quiz_outcome_feedback(
+                session=session, quiz=quiz, selected_index=selected_index, is_correct=is_correct,
+            )
+            bkt_result = {}
         attempt = await self._record_quiz_attempt(
             session,
             quiz,

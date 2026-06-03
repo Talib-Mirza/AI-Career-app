@@ -5,6 +5,7 @@ Generates a new roadmap every time: domains (6–12) then exactly 8 skills per d
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from dataclasses import dataclass
@@ -169,15 +170,12 @@ class RoadmapAgent:
             return AttemptResult(data=None, error=str(exc))
 
     async def generate(self, query: str) -> RoadmapResponse:
-        normalized_title = ""
-
         RoadmapLogger.info(event="roadmap_pipeline_start", query=query)
-        try:
-            normalized_title = await self.normalizer.normalize_learning_focus(query)
-            RoadmapLogger.info(event="learning_focus_normalized", query=query, normalized_title=normalized_title)
-        except Exception as exc:  # noqa: BLE001
-            RoadmapLogger.error(event="learning_focus_normalize_error", query=query, error=str(exc))
-            normalized_title = ""
+
+        # Fire normalization concurrently — it's metadata only and doesn't affect generation
+        normalize_task: asyncio.Task[str] = asyncio.create_task(
+            self.normalizer.normalize_learning_focus(query)
+        )
 
         domains_data: dict[str, Any] | None = None
         domains_issues: list[str] = []
@@ -244,6 +242,13 @@ class RoadmapAgent:
                     }
                 )
             domain["subdomains"] = normalized_subdomains
+
+        try:
+            normalized_title = await normalize_task
+            RoadmapLogger.info(event="learning_focus_normalized", query=query, normalized_title=normalized_title)
+        except Exception as exc:  # noqa: BLE001
+            RoadmapLogger.error(event="learning_focus_normalize_error", query=query, error=str(exc))
+            normalized_title = ""
 
         response = self._to_response(final_data, fallback_query=query)
         response.normalized_title = normalized_title or None

@@ -98,12 +98,20 @@ class RuntimeApiMixin:
 
     async def list_projects(self, user_id: str) -> list[AgentProjectSummary]:
         rows = await self.store.list_projects(user_id)
+        if not rows:
+            return []
+
+        # Batch-fetch all latest sessions in one query instead of one per project
+        session_ids = [str(row["latest_session_id"]) for row in rows if row.get("latest_session_id")]
+        session_status_map: dict[str, str] = {}
+        if session_ids:
+            sessions = await self.store.get_sessions_by_ids(session_ids)
+            session_status_map = {str(s["id"]): str(s.get("status") or "") for s in sessions}
+
         summaries: list[AgentProjectSummary] = []
         for row in rows:
-            latest_session_status = None
-            if row.get("latest_session_id"):
-                latest_session = await self.store.get_latest_session_for_project(row["id"])
-                latest_session_status = latest_session.get("status") if latest_session else None
+            sid = str(row["latest_session_id"]) if row.get("latest_session_id") else None
+            latest_session_status = session_status_map.get(sid) if sid else None
             summaries.append(self._project_summary(row, latest_session_status=latest_session_status))
         return summaries
 
@@ -204,8 +212,7 @@ class RuntimeApiMixin:
         else:
             response = await self._respond_from_terminal_state(session)
 
-        persisted_session = await self.store.get_session(response.session_id)
-        await self._persist_assistant_response(persisted_session, response)
+        await self._persist_assistant_response(session, response)
         return response
 
     async def _handle_start_mode(self, session: dict[str, Any], turn: AgentTurnRequest) -> AgentSessionResponse:

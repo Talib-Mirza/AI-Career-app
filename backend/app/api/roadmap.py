@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from slugify import slugify
 
 from app.models.roadmap import (
@@ -46,7 +46,7 @@ def _save_roadmap(data: dict, filename: str) -> None:
 
 
 @router.post("/generate", response_model=RoadmapGenerateResponse)
-async def generate_roadmap(request: RoadmapGenerateRequest) -> RoadmapGenerateResponse:
+async def generate_roadmap(request: RoadmapGenerateRequest, background_tasks: BackgroundTasks) -> RoadmapGenerateResponse:
     request_id = str(uuid.uuid4())
     query = request.query.strip()
 
@@ -56,27 +56,20 @@ async def generate_roadmap(request: RoadmapGenerateRequest) -> RoadmapGenerateRe
     try:
         roadmap_response = await agent.generate(query=query)
 
-        domains_filename = _generate_filename(query, "domains")
-        _save_roadmap(
-            {
-                "query": roadmap_response.query,
-                "domains": [
-                    {
-                        "id": d.id,
-                        "title": d.title,
-                        "description": d.description,
-                        "order": d.order,
-                    }
-                    for d in roadmap_response.domains
-                ],
-            },
-            domains_filename,
-        )
-
         final_filename = _generate_filename(query, "final")
         roadmap_response.timestamp = datetime.now().isoformat()
         roadmap_response.filename = final_filename
-        _save_roadmap(roadmap_response.model_dump(), final_filename)
+
+        # Persist files in the background — client doesn't need to wait for disk I/O
+        domains_data = {
+            "query": roadmap_response.query,
+            "domains": [
+                {"id": d.id, "title": d.title, "description": d.description, "order": d.order}
+                for d in roadmap_response.domains
+            ],
+        }
+        background_tasks.add_task(_save_roadmap, domains_data, _generate_filename(query, "domains"))
+        background_tasks.add_task(_save_roadmap, roadmap_response.model_dump(), final_filename)
 
         return RoadmapGenerateResponse(roadmap=roadmap_response, existing=False)
     except ValueError as exc:
